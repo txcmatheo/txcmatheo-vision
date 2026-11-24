@@ -15,6 +15,7 @@ STATE = os.path.join(REPO_DIR, "publish-state", "state.json")
 CSC = r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 GH = r"C:\Program Files\GitHub CLI\gh.exe"
 GH_REPO = "txcmatheo-vision"
+SIGN = os.path.join(REPO_DIR, "launcher", "TxcSign.exe")   # firma con la clave privada (solo en este PC)
 
 def sha256(path):
     h = hashlib.sha256()
@@ -58,7 +59,9 @@ def main():
     # La app para compartir en stage\app
     subprocess.run([sys.executable, os.path.join(REPO_DIR, "tools", "make-txcmatheo-share.py"), a.app, os.path.join(stage, "app")], check=True)
     # Lanzador con el repositorio del dueño
-    src = open(os.path.join(REPO_DIR, "launcher", "TxcLauncher.cs"), encoding="utf-8").read().replace("__OWNER__", a.owner)
+    pub = subprocess.run([SIGN, "pub"], capture_output=True, text=True, check=True).stdout.strip()
+    assert pub.startswith("<RSAKeyValue>") and '"' not in pub
+    src = open(os.path.join(REPO_DIR, "launcher", "TxcLauncher.cs"), encoding="utf-8").read().replace("__OWNER__", a.owner).replace("__PUBKEY__", pub)
     cs = os.path.join(a.out, "TxcLauncher.cs"); open(cs, "w", encoding="utf-8").write(src)
     ico = os.path.join(a.out, "txc.ico")
     subprocess.run([sys.executable, "-c", "from PIL import Image; Image.open(r'%s').save(r'%s', sizes=[(16,16),(32,32),(48,48),(256,256)])"
@@ -93,7 +96,9 @@ def main():
         print(f"parche: {len(changed)} archivos cambiados")
     mpath = os.path.join(a.out, "latest.json")
     json.dump(manifest, open(mpath, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-    assets.append(mpath)
+    subprocess.run([SIGN, "sign", mpath], check=True)
+    subprocess.run([SIGN, "verify", mpath], check=True)
+    assets += [mpath, mpath + ".sig"]
     for p in assets: print(f"{os.path.basename(p)}  {round(os.path.getsize(p) / 1e6, 1)} MB")
 
     if a.dry_run:

@@ -29,7 +29,11 @@ using System.Windows.Forms;
 
 static class TxcLauncher
 {
-    const string ManifestUrl = "https://github.com/__OWNER__/txcmatheo-vision/releases/latest/download/latest.json";
+    const string ReleasesBase = "https://github.com/__OWNER__/txcmatheo-vision/releases/";
+    const string ManifestUrl = ReleasesBase + "latest/download/latest.json";
+    // Clave pública de firma: solo se instala lo que firmó la clave privada del dueño (que no está
+    // en GitHub). Así, aunque alguien entrara en la cuenta de GitHub, no podría colar un paquete.
+    const string PublicKeyXml = "__PUBKEY__";
     static string Root = Path.GetDirectoryName(Application.ExecutablePath);
     static string App = Path.Combine(Root, "app");
     static string Log = Path.Combine(Root, "actualizador.log");
@@ -105,10 +109,17 @@ static class TxcLauncher
         var local = File.Exists(Path.Combine(App, "txc-version.json"))
             ? ReadJson(File.ReadAllText(Path.Combine(App, "txc-version.json"))) : new Dictionary<string, object>();
         string text;
-        // Solo para pruebas locales: TXC_MANIFEST_URL apunta a otro latest.json.
-        string mu = Environment.GetEnvironmentVariable("TXC_MANIFEST_URL");
-        if (string.IsNullOrEmpty(mu)) mu = ManifestUrl;
-        using (var wc = new TimeoutClient(8000)) text = wc.DownloadString(mu);
+        // Solo para pruebas en este PC: TXC_MANIFEST_URL puede apuntar a 127.0.0.1 (la firma se exige igual).
+        string mu = ManifestUrl, allowed = ReleasesBase + "download/";
+        string test = Environment.GetEnvironmentVariable("TXC_MANIFEST_URL");
+        if (!string.IsNullOrEmpty(test) && test.StartsWith("http://127.0.0.1:"))
+        {
+            mu = test; allowed = test.Substring(0, test.LastIndexOf('/') + 1);
+        }
+        byte[] raw, sig;
+        using (var wc = new TimeoutClient(8000)) { raw = wc.DownloadData(mu); sig = Convert.FromBase64String(wc.DownloadString(mu + ".sig").Trim()); }
+        if (!SignatureOk(raw, sig)) { Note("firma de latest.json INCORRECTA: no se instala nada"); return; }
+        text = System.Text.Encoding.UTF8.GetString(raw);
         var m = ReadJson(text);
         string version = Str(m, "version");
         Note("instalada=" + Str(local, "version") + " base=" + Str(local, "base") + " ultima=" + version);
@@ -119,6 +130,7 @@ static class TxcLauncher
         bool usePatch = patch != null && Str(patch, "base").Length > 0 && Str(patch, "base") == Str(local, "base");
         var pkg = usePatch ? patch : full;
         if (pkg == null) return;
+        if (!Str(pkg, "url").StartsWith(allowed)) { Note("dirección no permitida: " + Str(pkg, "url")); return; }
         long size = 0; long.TryParse(Str(pkg, "size"), out size);
 
         var form = new UpdateForm(version, usePatch, size);
@@ -151,6 +163,20 @@ static class TxcLauncher
         if (error != null && !form.Cancelled)
             MessageBox.Show("No se pudo actualizar (" + error + ").\nSe abre la versión que ya tienes.", "Txcmatheo Vision",
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    static bool SignatureOk(byte[] data, byte[] sig)
+    {
+        try
+        {
+            using (var rsa = new RSACryptoServiceProvider())
+            {
+                rsa.PersistKeyInCsp = false;
+                rsa.FromXmlString(PublicKeyXml);
+                return rsa.VerifyData(data, CryptoConfig.MapNameToOID("SHA256"), sig);
+            }
+        }
+        catch { return false; }
     }
 
     static void Download(string url, string to, long size, UpdateForm form)
@@ -188,8 +214,18 @@ static class TxcLauncher
     }
     static void Install(string zip, bool patch)
     {
+        string rootFull = Path.GetFullPath(Root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         using (var z = ZipFile.OpenRead(zip))
         {
+            // Ningún archivo del paquete puede caer fuera de la carpeta de Txcmatheo Vision.
+            foreach (var e in z.Entries)
+            {
+                string rel = e.FullName.Replace(Path.DirectorySeparatorChar, '/');
+                if (rel.EndsWith("/")) continue;
+                string full = Path.GetFullPath(Path.Combine(Root, rel.Replace('/', Path.DirectorySeparatorChar)));
+                if (Path.IsPathRooted(rel) || rel.Contains(":") || !full.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase))
+                    throw new Exception("el paquete trae una ruta no permitida: " + rel);
+            }
             foreach (var e in z.Entries)
             {
                 string rel = e.FullName.Replace('\\', '/');
