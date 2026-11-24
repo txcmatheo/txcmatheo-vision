@@ -1,0 +1,49 @@
+TXCMATHEO VISION
+================
+
+Juega la PS5 (por Remote Play o con capturadora) en el PC con más fluidez: genera cuadros
+intermedios para pasar de 30 o 60 fps a 120.
+
+
+QUÉ NECESITAS
+-------------
+- Windows 10 u 11 de 64 bits.
+- Tarjeta gráfica NVIDIA (esta versión trae los componentes de NVIDIA).
+  La generación de cuadros va mejor en RTX 40 y 50; en RTX 30 funciona en modo experimental.
+- Una capturadora HDMI por USB, o la PS5 en la misma red que el PC para Remote Play.
+
+
+CÓMO EMPEZAR
+------------
+1) Descomprime TODO el zip en una carpeta (clic derecho > Extraer todo). No lo abras desde dentro del zip.
+2) Abre "Txcmatheo Vision.exe" (el de la carpeta principal).
+   Si Windows avisa de que la app es desconocida: "Más información" > "Ejecutar de todas formas".
+3) Elige cómo conectar la PS5:
+   - Capture card: elige tu capturadora, 1920 x 1080 a 60 fps, y pulsa conectar.
+     En la PS5 pon la salida a 1080p (Ajustes > Pantalla y vídeo > Salida de vídeo).
+   - PS5 streaming: empareja con tu Account ID y el código de 8 dígitos que da la PS5 en
+     Ajustes > Sistema > Reproducción remota > Vincular dispositivo.
+4) En "Game profile" elige:
+   - FC 27  -> juegos y menús a 60 fps (60 -> 120).
+   - GTA VI -> juegos a 30 fps (30 -> 120).
+
+
+CONSEJOS
+--------
+- Pantalla completa (botón de abajo a la derecha del video) para que vaya más fluido.
+- Cierra o pausa fondos animados (Wallpaper Engine) y programas que usen la gráfica mientras juegas.
+- No abras dos Txcmatheo Vision a la vez: se pelean por la capturadora.
+- Si la capturadora deja de responder, desenchúfala, vuelve a enchufarla y reinicia la app.
+- Ábrela siempre con "Txcmatheo Vision.exe" de la carpeta principal (no el de la carpeta app):
+  al abrirse busca actualizaciones y las instala solo, sin tocar tus ajustes ni perfiles.
+  Sin internet, abre la versión que ya tienes.
+
+
+LICENCIA Y CRÉDITOS
+-------------------
+Txcmatheo Vision es software libre bajo la licencia GNU GPL-3.0 y se entrega SIN NINGUNA GARANTÍA.
+Es una versión modificada de PushFPS (DosukaSOL, https://github.com/DosukaSOL/PushFPS), que a su vez
+se basa en Veyra NR Video (Likely7, https://github.com/Likely7/Veyra-NRVideo).
+La licencia completa está en LICENSE, los avisos en NOTICE.md y THIRD_PARTY_NOTICES.md, y los créditos
+también en la app (Settings > About). El código fuente de los cambios está en la carpeta "codigo-fuente"
+y en "qml\Veyra"; ver codigo-fuente\ORIGEN.txt.

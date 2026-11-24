@@ -1,0 +1,434 @@
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Window
+
+// Shared by list and node inspectors: the bridge selects the actual Color node.
+ColumnLayout {
+    id: panel
+    required property var api
+    readonly property var state:api.colourState
+    property bool originalHeld: false
+    onOriginalHeldChanged: api.holdOriginal(originalHeld)
+    onVisibleChanged: { if (!visible) originalHeld = false }
+    Component.onDestruction: { if (originalHeld) api.holdOriginal(false) }
+    Connections {
+        target: panel.Window.window
+        function onActiveChanged() {
+            if (panel.Window.window && !panel.Window.window.active) panel.originalHeld = false
+        }
+    }
+    property string curveMode:"points"
+    // Node cards (N2): only the groups, all folded, each with its item count;
+    // the card header carries the switch.
+    property bool compact:false
+    // The tab redraw staggers this column's cards (ProPage M31).
+    readonly property Item sectionColumn:panel
+    readonly property var sectionCounts:[6,4,1,1,3,7,3,3]
+    readonly property var sections:[qsTr("亮"),qsTr("颜色"),qsTr("曲线"),qsTr("混色器"),qsTr("颜色分级"),qsTr("校准"),"LUT",qsTr("效果")]
+    readonly property var light:["exposure","contrast","highlights","shadows","whites","blacks"]
+    readonly property var colour:["temperature","tint","vibrance","saturation"]
+    readonly property var parametric:["paramHighlights","paramLights","paramDarks","paramShadows","splitHighlights","splitMidtones","splitShadows"]
+    spacing:6
+    Gradient {id:temperatureTrack;orientation:Gradient.Horizontal
+        GradientStop {position:0;color:"#4F8BFF"}
+        GradientStop {position:0.5;color:"#DDDDDD"}
+        GradientStop {position:1;color:"#FFB547"}}
+    Gradient {id:tintTrack;orientation:Gradient.Horizontal
+        GradientStop {position:0;color:"#4CD964"}
+        GradientStop {position:0.5;color:"#DDDDDD"}
+        GradientStop {position:1;color:"#FF5AC8"}}
+    Gradient {id:vibranceTrack;orientation:Gradient.Horizontal
+        GradientStop {position:0;color:"#777777"}
+        GradientStop {position:1;color:"#FF9A3D"}}
+    Gradient {id:saturationTrack;orientation:Gradient.Horizontal
+        GradientStop {position:0;color:"#777777"}
+        GradientStop {position:1;color:"#FF5A5A"}}
+    Gradient {id:greenCalibrationTrack;orientation:Gradient.Horizontal
+        GradientStop {position:0;color:"#777777"}
+        GradientStop {position:1;color:"#4CD964"}}
+    Gradient {id:blueCalibrationTrack;orientation:Gradient.Horizontal
+        GradientStop {position:0;color:"#777777"}
+        GradientStop {position:1;color:"#4F8BFF"}}
+    function valueFor(key){
+        let value=state
+        for(const part of key.split("."))value=value[part]
+        return Number(value)
+    }
+    function descriptor(key){
+        const found=api.colourParameters.find(p=>p.name===key)
+        if(found)return found
+        const parts=key.split(".")
+        return {name:key,label:[qsTr("红原色"),qsTr("绿原色"),qsTr("蓝原色")][Number(parts[1])]+
+            (parts[0]==="calibrationHue"?qsTr(" · 色相"):qsTr(" · 饱和度")),min:-100,max:100,step:1,defaultValue:0}
+    }
+    component NameField: Rectangle {
+        property alias text: field.text
+        property string placeholder: ""
+        signal accepted()
+        implicitHeight: Math.max(30, placeholderLabel.implicitHeight + 8)
+        radius: 9
+        color: Theme.ink(0.04)
+        border.width: 1
+        border.color: field.activeFocus ? Theme.accent : Theme.stroke
+        TextInput {
+            id: field
+            anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
+            verticalAlignment: TextInput.AlignVCenter
+            color: Theme.t1; font.family: Theme.fontUi; font.pixelSize: Theme.fsBody
+            selectByMouse: true; clip: true; maximumLength: 48
+            onAccepted: parent.accepted()
+        }
+        Text {
+            id: placeholderLabel
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left; anchors.leftMargin: 10
+            anchors.right: parent.right; anchors.rightMargin: 10
+            wrapMode: Text.Wrap
+            visible: field.text.length === 0
+            text: parent.placeholder; color: Theme.t3
+            font.family: Theme.fontUi; font.pixelSize: Theme.fsBody
+        }
+    }
+    component ParameterRows: ColumnLayout {
+        id: rows
+        property var keys:[]
+        spacing:0
+        Repeater {
+            model:rows.keys.length
+            delegate:Item {
+                required property int index
+                readonly property string key:rows.keys[index]
+                readonly property var spec:panel.descriptor(key)
+                Layout.fillWidth:true
+                implicitHeight: Math.max(Theme.rowMinHeight, parameterLabel.implicitHeight + 6)
+                Text {
+                    id: parameterLabel
+                    anchors.left: parent.left
+                    anchors.right: paramSlider.left
+                    anchors.rightMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    text:spec.label;color:Theme.t2
+                    font.family:Theme.fontUi;font.pixelSize:Theme.fsBody
+                    wrapMode:Text.Wrap
+                }
+                VSlider {
+                    id:paramSlider
+                    objectName:"colour-param-"+key
+                    valueFromModel:true
+                    resettable:true;defaultValue:spec.defaultValue
+                    anchors.right: parameterValue.left
+                    anchors.rightMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(150, parent.width * 0.5)
+                    from:spec.min;to:spec.max;center:from<0&&to>0
+                    showCenterFill:true
+                    Accessible.name:spec.label
+                    value:panel.valueFor(key)
+                    trackGradient:key==="temperature"?temperatureTrack:key==="tint"?tintTrack:
+                        key==="vibrance"?vibranceTrack:key==="saturation"||key==="calibrationHue.0"?saturationTrack:
+                        key==="calibrationHue.1"?greenCalibrationTrack:key==="calibrationHue.2"?blueCalibrationTrack:null
+                    onMoved:value=>panel.api.setColourParameter(key,Math.round(value/spec.step)*spec.step)
+                }
+                VSliderValue {
+                    id: parameterValue
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.max(40, implicitWidth)
+                    slider:paramSlider
+                    text:panel.valueFor(key).toFixed(spec.step<1?2:0)
+                }
+            }
+        }
+    }
+    // color.js .ctop: the 调色 switch with its note, then the tool row -
+    // undo / redo / copy / paste on the left, 按住看原图 and 一键还原 on the right.
+    Rectangle {
+        id: colourTop
+        objectName:"colour-top"
+        visible:!panel.compact
+        Layout.fillWidth:true
+        implicitHeight:topCol.implicitHeight+10
+        radius:12
+        color:Theme.card2
+        border.width:1
+        border.color:Theme.stroke
+        property real motionDy:0
+        transform:Translate {y:colourTop.motionDy}
+        // The tool row at its full labels. A layout whose children need more than
+        // its width grows past its anchors, which pushed the 调色 switch out of the
+        // card once the inspector scrollbar took its gutter (field report 2026-10-05,
+        // 125-150 % scale); narrower than this, 一键还原 keeps only its icon.
+        TextMetrics {id:holdMetrics;font.family:Theme.fontUi;font.pixelSize:Theme.fsBody;font.weight:Font.Medium;text:qsTr("按住看原图")}
+        TextMetrics {id:resetMetrics;font.family:Theme.fontUi;font.pixelSize:Theme.fsBody;font.weight:Font.Medium;text:qsTr("一键还原")}
+        readonly property bool compactTools:topCol.width<4*28+5*2+holdMetrics.advanceWidth+resetMetrics.advanceWidth+2*47+8
+        ColumnLayout {
+            id:topCol
+            anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top
+            anchors.leftMargin:12;anchors.rightMargin:12;anchors.topMargin:2
+            spacing:2
+            RowLayout {
+                Layout.fillWidth:true
+                Layout.minimumHeight:44
+                spacing:10
+                ColumnLayout {
+                    Layout.fillWidth:true
+                    spacing:2
+                    Text {
+                        text:panel.state.index<0?qsTr("没有调色节点"):veyra.nodeMode===1?qsTr("调色 · 实例 ")+(panel.state.index+1):qsTr("调色")
+                        color:Theme.t1;font.family:Theme.fontUi;font.pixelSize:13
+                        font.weight:Font.DemiBold;font.variableAxes:Theme.axesDemiBold
+                    }
+                    Text {
+                        Layout.fillWidth:true
+                        text:panel.state.enabled?qsTr("关闭时这条链路不存在，零开销"):qsTr("已关闭 · 参数保留但不生效")
+                        color:Theme.t3;font.family:Theme.fontUi;font.pixelSize:11
+                        wrapMode:Text.Wrap
+                    }
+                }
+                VSwitch {objectName:"colour-master";checked:panel.state.enabled;onToggled:checked=>panel.api.colorEnabled=checked}
+            }
+            RowLayout {
+                objectName:"colour-tools"
+                Layout.fillWidth:true
+                Layout.bottomMargin:6
+                spacing:2
+                VButton {
+                    objectName:"colour-undo"
+                    icon:true;ghost:true;iconName:"undo";implicitWidth:28;implicitHeight:28
+                    tip:qsTr("撤销");enabled:panel.api.colourCanUndo
+                    onClicked:panel.api.colourUndo()
+                }
+                VButton {
+                    objectName:"colour-redo"
+                    icon:true;ghost:true;iconName:"refresh";implicitWidth:28;implicitHeight:28
+                    tip:qsTr("重做");enabled:panel.api.colourCanRedo
+                    onClicked:panel.api.colourRedo()
+                }
+                VButton {
+                    objectName:"colour-copy"
+                    icon:true;ghost:true;iconName:"copy";implicitWidth:28;implicitHeight:28
+                    tip:qsTr("复制调色参数");enabled:panel.state.index>=0
+                    onClicked:panel.api.colourCopy()
+                }
+                VButton {
+                    objectName:"colour-paste"
+                    icon:true;ghost:true;iconName:"import";implicitWidth:28;implicitHeight:28
+                    tip:qsTr("粘贴调色参数");enabled:panel.api.colourCanPaste&&panel.state.index>=0
+                    onClicked:panel.api.colourPaste()
+                }
+                Item {Layout.fillWidth:true}
+                VButton {
+                    objectName:"colour-original-hold"
+                    implicitHeight:28
+                    iconName:"eye"
+                    text:panel.originalHeld?qsTr("松开恢复"):qsTr("按住看原图")
+                    Accessible.name:qsTr("按住查看原图，松开恢复增强画面")
+                    MouseArea {
+                        anchors.fill:parent
+                        acceptedButtons:Qt.LeftButton
+                        onPressed:panel.originalHeld=true
+                        onReleased:panel.originalHeld=false
+                        onCanceled:panel.originalHeld=false
+                    }
+                }
+                VButton {
+                    objectName:"colour-reset-all"
+                    implicitHeight:28
+                    ghost:true;iconName:"reset"
+                    icon:colourTop.compactTools
+                    text:icon?"":qsTr("一键还原")
+                    tip:icon?qsTr("一键还原"):""
+                    Accessible.name:qsTr("一键还原")
+                    onClicked:panel.api.resetColourGroup(-1)
+                }
+            }
+        }
+    }
+    // Colour presets: one Color node's settings (ColorLookStore), not the
+    // whole-chain presets. Applying one replaces this instance only.
+    VRow {
+        visible:!panel.compact
+        label:qsTr("颜色预设")
+        VSelect {
+            objectName:"colour-look-select"
+            implicitWidth:170
+            value:panel.api.colourLooks.length?qsTr("应用预设…"):qsTr("暂无颜色预设")
+            options:panel.api.colourLooks.map(l=>({id:String(l.index),label:l.name+(l.lut?" · LUT":"")}))
+            onPicked:id=>panel.api.applyColourLook(Number(id))
+        }
+    }
+    RowLayout {
+        visible:!panel.compact
+        Layout.fillWidth:true
+        spacing:6
+        NameField {
+            id:lookName
+            objectName:"colour-look-name"
+            Layout.fillWidth:true
+            placeholder:qsTr("新预设名称")
+            onAccepted:saveLook.clicked()
+        }
+        VButton {
+            id:saveLook
+            objectName:"colour-look-save"
+            text:qsTr("保存")
+            enabled:lookName.text.trim().length>0&&panel.state.index>=0
+            onClicked:{
+                const name=lookName.text.trim()
+                const exists=panel.api.colourLooks.some(l=>l.name===name)
+                if(panel.api.saveColourLook(name,exists))lookName.text=""
+            }
+        }
+        VButton {
+            id:lookMore
+            objectName:"colour-look-more"
+            text:qsTr("管理");ghost:true
+            Accessible.name:qsTr("颜色预设 · 导入/导出/删除")
+            onClicked:lookMenu.openAt(lookMore,"down")
+        }
+        VMenu {
+            id:lookMenu
+            title:qsTr("颜色预设")
+            items:[{act:"import",label:qsTr("导入 .vpcolor…"),icon:"import"}]
+                .concat(panel.api.colourLooks.map(l=>({act:"export",look:l.index,label:qsTr("导出「")+l.name+"」…",icon:"upload"})))
+                .concat(panel.api.colourLooks.map(l=>({act:"delete",look:l.index,label:qsTr("删除「")+l.name+"」",icon:"trash"})))
+            onPicked:(i,item)=>{
+                if(item.act==="import")panel.api.importColourLookDialog()
+                else if(item.act==="export")panel.api.exportColourLookDialog(item.look)
+                else if(item.act==="delete")panel.api.deleteColourLook(item.look)
+            }
+        }
+    }
+    Repeater {
+        model:8
+        delegate:VAccordion {
+            id: section
+            required property int index
+            objectName:"colour-section-"+index
+            Layout.fillWidth:true
+            title:panel.sections[index];glyph:"palette";hue:"#E0C341"
+            summary:panel.compact?panel.sectionCounts[index]+qsTr(" 项"):""
+            open:!panel.compact&&index<2
+            enabledSwitch:false
+            compactHeader:true
+            bypassed:index<7&&(panel.state.groupBypassMask&(1<<index))!==0
+            headerLeadingActions: [
+                VButton {
+                    objectName:"colour-bypass-"+section.index
+                    visible:section.index<7
+                    icon:true;iconName:section.bypassed?"eyeoff":"eye"
+                    ghost:true;implicitWidth:24;implicitHeight:24;radius:7
+                    Accessible.name:panel.sections[section.index]+(section.bypassed?qsTr(" · 恢复"):qsTr(" · 旁路"))
+                    onClicked:panel.api.setColourOption("groupBypassMask",panel.state.groupBypassMask^(1<<section.index))
+                }
+            ]
+            headerActions: [
+                VButton {
+                    objectName:"colour-reset-"+section.index
+                    icon:true;iconName:"reset";ghost:true;implicitWidth:26;implicitHeight:26
+                    Accessible.name:panel.sections[section.index]+qsTr(" · 还原")
+                    onClicked:panel.api.resetColourGroup(section.index)
+                }
+            ]
+            ParameterRows {
+                Layout.fillWidth:true
+                visible:section.index===0||section.index===1||section.index===7
+                keys:section.index===0?panel.light:section.index===1?panel.colour:
+                    section.index===7?["texture","clarity","dehaze"]:[]
+            }
+            Text {
+                Layout.fillWidth:true;visible:section.index===1
+                text:qsTr("色温为相对值；采集卡没有拍摄白平衡。")
+                color:Theme.t3;font.pixelSize:11;wrapMode:Text.WordWrap
+            }
+            Loader {
+                Layout.fillWidth:true;active:section.index===2;visible:active
+                sourceComponent:ColumnLayout {
+                VSeg {
+                    objectName:"colour-curve-mode"
+                    options:[{id:"points",label:qsTr("点曲线")},{id:"parametric",label:qsTr("参数曲线")}]
+                    current:panel.curveMode;onPicked:id=>panel.curveMode=id
+                }
+                ColourCurve {
+                    objectName:"colour-curve"
+                    Layout.fillWidth:true;visible:panel.curveMode==="points"
+                    curves:panel.state.curves;samples:panel.state.curveSamples
+                    onEdited:(channel,points)=>panel.api.setColourCurve(channel,points)
+                }
+                ParameterRows {Layout.fillWidth:true;visible:panel.curveMode==="parametric";keys:panel.parametric}
+                }
+            }
+            Loader {
+                Layout.fillWidth:true;active:section.index===3;visible:active
+                sourceComponent:ColourMixer {
+                objectName:"colour-mixer"
+                state:panel.state
+                onEdited:(name,value)=>panel.api.setColourParameter(name,value)
+                onModeEdited:blackWhite=>panel.api.setColourOption("blackWhite",blackWhite?1:0)
+                }
+            }
+            Loader {
+                Layout.fillWidth:true;active:section.index===4;visible:active
+                sourceComponent:ColumnLayout {
+                GridLayout {
+                    Layout.fillWidth:true;columns:2;columnSpacing:14;rowSpacing:14
+                    Repeater {
+                        model:4
+                        delegate:ColourWheel {
+                            property bool sliderResetEnabled: true
+                            property bool sliderValueFromModel: true
+                            required property int index
+                            objectName:"colour-wheel-"+index
+                            Layout.fillWidth:true
+                            title:[qsTr("阴影"),qsTr("中间调"),qsTr("高光"),qsTr("全局")][index]
+                            hue:panel.state.grading[index].hue
+                            saturation:panel.state.grading[index].saturation
+                            luminance:panel.state.grading[index].luminance
+                            onEdited:(h,s,l)=>panel.api.setColourWheel(index,h,s,l)
+                        }
+                    }
+                }
+                ParameterRows {Layout.fillWidth:true;keys:["gradingBlending","gradingBalance"]}
+                }
+            }
+            ParameterRows {
+                Layout.fillWidth:true;visible:section.index===5
+                keys:section.index===5?["calibrationShadowTint","calibrationHue.0","calibrationSaturation.0","calibrationHue.1","calibrationSaturation.1","calibrationHue.2","calibrationSaturation.2"]:[]
+            }
+            Loader {
+                Layout.fillWidth:true;active:section.index===6;visible:active
+                sourceComponent:ColumnLayout {
+                VRow {
+                    label:qsTr("LUT 文件")
+                    VSelect {
+                        objectName:"colour-lut-select"
+                        implicitWidth:170
+                        value:panel.state.lutName?panel.state.lutName:qsTr("未使用")
+                        options:[{id:"",label:qsTr("不使用 LUT")}].concat(panel.api.lutLibrary.map(n=>({id:n,label:n})))
+                        onPicked:id=>panel.api.setColourLut(id)
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth:true
+                    VButton {
+                        objectName:"colour-lut-import"
+                        text:qsTr("导入 .cube…");ghost:true
+                        onClicked:panel.api.importLutDialog()
+                    }
+                    Item {Layout.fillWidth:true}
+                }
+                ParameterRows {Layout.fillWidth:true;keys:["lutStrength"]}
+                VSeg {
+                    options:[{id:"0",label:"Cineon"},{id:"1",label:"sRGB"},{id:"2",label:"PQ"}]
+                    current:String(panel.state.lutInputSpace)
+                    onPicked:id=>panel.api.setColourOption("lutInputSpace",Number(id))
+                }
+                Text {
+                    Layout.fillWidth:true;text:qsTr("导入的 .cube 保存在程序目录 runtime_local/luts，导出也使用同一份。")
+                    color:Theme.t3;font.pixelSize:11;wrapMode:Text.WordWrap
+                }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,18 @@
+
+
+VERSIÓN DLSS 5 (para tarjetas RTX 40 / RTX 50)
+----------------------------------------------
+Esta copia trae los perfiles FC 27 y GTA VI con el realce de imagen por IA encendido
+(Quick setup > AI picture enhancement, el "DLSS 5 NR" de NVIDIA) y la generación de
+cuadros VFG en calidad Medium. Da una imagen más nítida y con más detalle, pero pide
+mucha tarjeta gráfica: en una RTX 3050 no funciona (baja a 12 fps).
+
+- La primera vez, en "Game profile" elige FC 27 (o GTA VI) para que se aplique.
+  Con "Auto profile" encendido, Vision cambia solo entre los dos según el juego.
+- Si ves tirones o la imagen baja de 120 fps:
+    1) En Frame Gen > VFG quality pon "Medium+Low" o "Low".
+    2) Si sigue, apaga "AI picture enhancement" en Quick setup.
+- Pon el monitor a su frecuencia máxima (Configuración > Pantalla > Pantalla avanzada)
+  y apaga "Frecuencia de actualización dinámica", o Vision se quedará en 60 fps.
+- En el panel de NVIDIA, "Modo de control de energía: Preferir rendimiento máximo"
+  para "Txcmatheo Vision.exe" ayuda a que la gráfica no baje de velocidad.

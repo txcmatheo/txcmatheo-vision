@@ -1,0 +1,63 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+Rectangle {
+    id: sel
+    property string value: ""
+    property string displayValue: value
+    readonly property bool compactLabel: displayValue !== value
+    readonly property var selectedOption: options.find(o => o.label === value) || ({})
+    readonly property color valueColor: selectedOption.danger === true ? Theme.err
+                                       : selectedOption.gold === true ? Theme.warn : Theme.t1
+    property var options: []      // [{ id, label, danger?, gold? }]
+    // .pop h6: the design titles a select's menu with the row label (core.js sel()).
+    property string title: ""
+    signal picked(string id)
+
+    implicitWidth: 150
+    implicitHeight: compactLabel ? 30 : Math.max(30, valueLabel.implicitHeight + 8)
+    radius: 9
+    color: hover.hovered ? Theme.ink(0.09) : Theme.ink(0.05)
+    border.width: 1
+    // (The new design: the edge lights up in the accent under the pointer. Legacy: as it was.)
+    border.color: Theme.modern && hover.hovered && enabled ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.75) : Theme.stroke
+    Behavior on border.color { enabled: Theme.modern; ColorAnimation { duration: Theme.d(160) } }
+    HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
+    TapHandler { gesturePolicy: TapHandler.WithinBounds; onTapped: menu.openAt(sel, "down") }
+
+    RowLayout {
+        anchors.fill: parent
+        anchors.leftMargin: 12
+        anchors.rightMargin: 10
+        Text {
+            id: valueLabel
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            text: sel.displayValue
+            color: sel.valueColor
+            font.family: Theme.fontUi
+            font.pixelSize: Theme.fsBody
+            font.weight: Font.Medium
+            wrapMode: sel.compactLabel ? Text.NoWrap : Text.Wrap
+            elide: sel.compactLabel ? Text.ElideRight : Text.ElideNone
+        }
+        VIcon { name: "down"; size: 14; color: Theme.t3 }
+    }
+
+    ToolTip.visible: hover.hovered && (sel.compactLabel || valueLabel.truncated)
+    ToolTip.delay: 500
+    ToolTip.text: sel.value
+
+    VMenu {
+        id: menu
+        // Default to the enclosing VRow's label, as the design's sel(label, ...) does.
+        title: {
+            if (sel.title.length > 0) return sel.title
+            for (let p = sel.parent; p; p = p.parent)
+                if (p instanceof VRow) return p.label
+            return ""
+        }
+        items: sel.options.map(o => ({ label: o.label, checked: o.label === sel.value, disabled: o.disabled === true, danger: o.danger === true, gold: o.gold === true, note: o.note || "" }))
+        onPicked: (i, o) => sel.picked(sel.options[i].id)
+    }
+}
