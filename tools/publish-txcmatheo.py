@@ -49,7 +49,8 @@ def main():
     pushfps = re.search(r"PushFPS ([0-9.]+)", pv).group(1)
     engine = re.search(r"Runtime: (.+)", pv).group(1).strip() + " / PushFPS " + pushfps
     n = state.get("n", {}).get(pushfps, 0) + 1
-    version = f"{pushfps}-txc.{n}"
+    # 4.5.0 la primera publicación sobre PushFPS 4.5.0; después 4.5.0.1, 4.5.0.2…
+    version = pushfps if n == 1 else f"{pushfps}.{n - 1}"
     tag = "v" + version
 
     if os.path.exists(a.out): shutil.rmtree(a.out)
