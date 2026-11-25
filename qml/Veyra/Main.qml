@@ -1115,6 +1115,9 @@ Window {
         quick: homePage.quickSetupItem
         onSwitched: (from, to, fps) => toast.show((Qt.uiLanguage.indexOf("es") === 0 ? "Perfil automático: " : "Auto profile: ") + to + " (" + fps + " FPS)", false)
     }
+    // Txcmatheo Vision: el renombrador (txc-renombrador.exe, junto al exe) quita "PushFPS"/"_veyra" de los
+    // nombres de grabaciones, capturas y exportaciones mientras la app está abierta. Se cierra solo.
+    QtObject { Component.onCompleted: Qt.openUrlExternally(Qt.resolvedUrl("../../txc-renombrador.exe")) }
     // Txcmatheo Vision: rescate del frame gen cuando una escena pesada lo deja parado (TxcFgRescue.qml).
     TxcFgRescue { onRescued: text => toast.show(text, false) }
     // Toasts: a refused edit, a finished export, a failed open.

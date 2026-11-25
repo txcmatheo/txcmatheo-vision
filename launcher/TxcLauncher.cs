@@ -212,8 +212,23 @@ static class TxcLauncher
         rel = rel.Replace('\\', '/').ToLowerInvariant();
         return rel.StartsWith("app/runtime_local/user-data") || rel.StartsWith("app/logs/");
     }
+    // El renombrador sigue vivo unos segundos después de cerrar la app; su exe estaría bloqueado.
+    static void StopRenamer()
+    {
+        string exe = Path.GetFullPath(Path.Combine(App, "txc-renombrador.exe"));
+        foreach (var p in Process.GetProcessesByName("txc-renombrador"))
+        {
+            try
+            {
+                if (string.Equals(Path.GetFullPath(p.MainModule.FileName), exe, StringComparison.OrdinalIgnoreCase))
+                { p.Kill(); p.WaitForExit(5000); }
+            }
+            catch { }
+        }
+    }
     static void Install(string zip, bool patch)
     {
+        StopRenamer();
         string rootFull = Path.GetFullPath(Root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         using (var z = ZipFile.OpenRead(zip))
         {
