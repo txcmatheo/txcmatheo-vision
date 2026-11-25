@@ -7,6 +7,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Effects
+import "TxcVersion.js" as TxcVersion
 
 VPage {
     id: root
@@ -187,6 +188,16 @@ VPage {
                 font.family: Theme.fontUi
                 font.pixelSize: Theme.fsH1
                 font.weight: Font.DemiBold; font.variableAxes: Theme.axesDemiBold
+            }
+            // Txcmatheo Vision: versión instalada (TxcVersion.js, la escribe el publicador).
+            Text {
+                objectName: "txc-version"
+                Layout.alignment: Qt.AlignHCenter
+                text: "v" + TxcVersion.version
+                color: Theme.t3
+                font.family: Theme.fontUi
+                font.pixelSize: Theme.fsSmall
+                opacity: root.introHold ? 0 : 1
             }
         }
 

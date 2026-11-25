@@ -31,6 +31,13 @@ def index(root):
             out[os.path.relpath(full, root).replace("\\", "/")] = sha256(full)
     return out
 
+def write_version(path, version):
+    assert re.fullmatch(r"[0-9.]+", version)
+    open(path, "w", encoding="utf-8", newline="\n").write(
+        ".pragma library\n// Txcmatheo Vision: versión que se muestra en la pantalla de inicio (HomePage.qml).\n"
+        "// La escribe tools/publish-txcmatheo.py en cada release; no editar a mano.\n"
+        f'var version = "{version}";\n')
+
 def make_zip(root, rels, dest):
     with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
         for rel in sorted(rels): z.write(os.path.join(root, rel), rel)
@@ -58,6 +65,8 @@ def main():
     stage = os.path.join(a.out, "stage"); os.makedirs(stage)
     # La app para compartir en stage\app
     subprocess.run([sys.executable, os.path.join(REPO_DIR, "tools", "make-txcmatheo-share.py"), a.app, os.path.join(stage, "app")], check=True)
+    # La versión que enseña la pantalla de inicio
+    write_version(os.path.join(stage, "app", "qml", "Veyra", "TxcVersion.js"), version)
     # Lanzador con el repositorio del dueño
     pub = subprocess.run([SIGN, "pub"], capture_output=True, text=True, check=True).stdout.strip()
     assert pub.startswith("<RSAKeyValue>") and '"' not in pub
@@ -103,7 +112,9 @@ def main():
 
     if a.dry_run:
         print("dry-run: nada subido. Carpeta:", a.out); return
-    notes = (a.notes or "Actualización de Txcmatheo Vision.") + "\n\nPara instalar por primera vez: descarga el .zip completo, descomprímelo y abre \"Txcmatheo Vision.exe\"."
+    notes = ((a.notes or "Actualización de Txcmatheo Vision.") +
+             "\n\n**¿Ya tienes Txcmatheo Vision con lanzador?** No hagas nada: abre \"Txcmatheo Vision.exe\" (el de fuera de la carpeta app) y se actualiza solo." +
+             f"\n\n**¿Primera vez, o tu carpeta no tiene una subcarpeta `app`?** Descarga el paquete completo: {manifest['full']['url']} — descomprímelo y abre \"Txcmatheo Vision.exe\". A partir de ahí se actualiza solo.")
     subprocess.run([GH, "release", "create", tag, *assets, "--repo", f"{a.owner}/{GH_REPO}", "--title", f"Txcmatheo Vision {version}",
                     "--notes", notes, "--latest"], check=True)
     state.setdefault("n", {})[pushfps] = n
@@ -112,6 +123,9 @@ def main():
         state.update({"base": base, "engine": engine, "index": idx, "full": manifest["full"]})
     os.makedirs(os.path.dirname(STATE), exist_ok=True)
     json.dump(state, open(STATE, "w", encoding="utf-8"), indent=1)
+    # Ya publicada: la app personal y el repositorio enseñan la misma versión
+    for p in (os.path.join(a.app, "qml", "Veyra", "TxcVersion.js"), os.path.join(REPO_DIR, "pushfps", "qml", "Veyra", "TxcVersion.js")):
+        write_version(p, version)
     print("publicado:", tag)
 
 main()
