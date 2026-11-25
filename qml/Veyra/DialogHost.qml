@@ -7,6 +7,16 @@ Item {
     id: host
     // Compatibility type used by the professional and node views.
     component VTextField: DialogTextField {}
+    // (4.5.1) Dialogs nobody has opened yet are not made at start: less to load and to keep evaluating while the
+    // picture plays. Made the first time their key is asked for and kept from then on (their fade-out and what
+    // they hold stay as they were). Only dialogs that do nothing while closed and that nothing outside reaches.
+    component LazyDialog: Loader {
+        required property string dialogKey
+        active: false
+        readonly property bool asked: host.dialog === dialogKey
+        onAskedChanged: if (asked) active = true
+        Component.onCompleted: if (asked) active = true
+    }
     anchors.fill: parent
     z: 100
 
@@ -156,78 +166,31 @@ Item {
         id: optimizeDialog
         dialogHost: host
     }
-    PushGamePresetsDialog {
-        id: gamePresetsDialog
-        dialogHost: host
-    }
-    PushHudDialog {
-        id: hudDialog
-        dialogHost: host
-    }
-    PushLatencyGuideDialog {
-        id: latencyGuideDialog
-        dialogHost: host
-    }
-    PushCrashDialog {
-        id: crashDialog
-        dialogHost: host
-    }
-    PushDiagnoseDialog {
-        id: diagnoseDialog
-        dialogHost: host
-    }
+    LazyDialog { dialogKey: "games"; sourceComponent: Component { PushGamePresetsDialog { dialogHost: host } } }
+    LazyDialog { dialogKey: "hud"; sourceComponent: Component { PushHudDialog { dialogHost: host } } }
+    LazyDialog { dialogKey: "latencyguide"; sourceComponent: Component { PushLatencyGuideDialog { dialogHost: host } } }
+    LazyDialog { dialogKey: "crash"; sourceComponent: Component { PushCrashDialog { dialogHost: host } } }
+    LazyDialog { dialogKey: "diagnose"; sourceComponent: Component { PushDiagnoseDialog { dialogHost: host } } }
     // PushFPS redesign: the palette button's panel (key "appearance").
-    PushAppearanceDialog {
-        id: appearanceDialog
-        dialogHost: host
-        onRequestSettings: host.requestAppearanceSettings()
-    }
+    LazyDialog { dialogKey: "appearance"; sourceComponent: Component { PushAppearanceDialog { dialogHost: host; onRequestSettings: host.requestAppearanceSettings() } } }
     // PushFPS: read the text on the picture (key "readtext").
     PushReadTextDialog {
         id: readTextDialog
         dialogHost: host
     }
-    PushCardTestDialog {
-        id: cardTestDialog
-        dialogHost: host
-    }
+    LazyDialog { dialogKey: "cardtest"; sourceComponent: Component { PushCardTestDialog { dialogHost: host } } }
     PushStreamDialog {
         id: streamDialog
         dialogHost: host
     }
-    PushCompareDialog {
-        id: compareDialog
-        dialogHost: host
-    }
-    PushRecordDialog {
-        id: recordDialog
-        dialogHost: host
-    }
-    PushMicFiltersDialog {
-        id: micFiltersDialog
-        dialogHost: host
-    }
-    PushFrameInputDialog {
-        id: frameInputDialog
-        dialogHost: host
-    }
-    PushQualityTestDialog {
-        id: qualityTestDialog
-        dialogHost: host
-    }
-    PushLatencyTestDialog {
-        id: latencyTestDialog
-        dialogHost: host
-    }
-    PushLayoutDialog {
-        id: layoutDialog
-        dialogHost: host
-        sceneId: host.layoutScene
-    }
-    PushCropDialog {
-        id: cropDialog
-        dialogHost: host
-    }
+    LazyDialog { dialogKey: "compare"; sourceComponent: Component { PushCompareDialog { dialogHost: host } } }
+    LazyDialog { dialogKey: "record"; sourceComponent: Component { PushRecordDialog { dialogHost: host } } }
+    LazyDialog { dialogKey: "micfilters"; sourceComponent: Component { PushMicFiltersDialog { dialogHost: host } } }
+    LazyDialog { dialogKey: "frameinput"; sourceComponent: Component { PushFrameInputDialog { dialogHost: host } } }
+    LazyDialog { dialogKey: "qualitytest"; sourceComponent: Component { PushQualityTestDialog { dialogHost: host } } }
+    LazyDialog { dialogKey: "latencytest"; sourceComponent: Component { PushLatencyTestDialog { dialogHost: host } } }
+    LazyDialog { dialogKey: "layout"; sourceComponent: Component { PushLayoutDialog { dialogHost: host; sceneId: host.layoutScene } } }
+    LazyDialog { dialogKey: "crop"; sourceComponent: Component { PushCropDialog { dialogHost: host } } }
 
     // --- small building blocks the design's dialogs use --------------------
 

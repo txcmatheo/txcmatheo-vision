@@ -22,7 +22,7 @@ DialogLayer {
     key: "record"
     glyph: "video"
     title: qsTr("录制")
-    sub: qsTr("选择录成什么样，然后开始")
+    sub: qsTr("和“设置 → 录制”是同一套设置：这里显示的就是设置里的，在这里改，那里也会改")
     dialogWidth: 560
 
     readonly property string shapeId: Record.shape(veyra.preferences)
@@ -62,7 +62,7 @@ DialogLayer {
     function qualityHint(id) {
         return id === "best" ? qsTr("恒定画质：画面再复杂也不会糊，文件最大")
              : id === "small" ? qsTr("标准码率的一半：文件小一半，快速运动时画面会软一些")
-             : id === "custom" ? qsTr("正在使用设置里选的码率或平台预设（%1 Mbps）。在这里选一项就会改用它").arg(rec.plan.mbps)
+             : id === "custom" ? qsTr("用的是设置里选的码率或上传预设（%1 Mbps）。在这里选别的一项才会改掉它").arg(rec.plan.mbps)
              : qsTr("标准码率：快速运动也保持清晰，适合保存和剪辑")
     }
     readonly property string summary: {
@@ -138,9 +138,11 @@ DialogLayer {
             hintBelow: true
             VSeg {
                 objectName: "pushfps-record-size"
+                // PushFPS 4.5.4: a size chosen in Settings that is none of these is shown as chosen, not as nothing.
                 options: (rec.tall ? Record.tallSizes : Record.sizes).map(n => ({ id: String(n), label: rec.sizeLabel(n) }))
+                         .concat(rec.sizeId < 0 ? [{ id: "-1", label: qsTr("设置里的") }] : [])
                 current: String(rec.sizeId)
-                onPicked: id => rec.pickSize(Number(id))
+                onPicked: id => { if (Number(id) >= 0) rec.pickSize(Number(id)) }
             }
         }
         VRow {
@@ -150,9 +152,11 @@ DialogLayer {
             hintBelow: true
             VSeg {
                 objectName: "pushfps-record-quality"
+                // PushFPS 4.5.4: a rate or upload preset chosen in Settings is shown as chosen ("Settings'"), and is kept.
                 options: Record.qualities.map(id => ({ id: id, label: rec.qualityLabel(id) }))
+                         .concat(rec.qualityId === "custom" ? [{ id: "custom", label: qsTr("设置里的") }] : [])
                 current: rec.qualityId
-                onPicked: id => rec.pickQuality(String(id))
+                onPicked: id => { if (String(id) !== "custom") rec.pickQuality(String(id)) }
             }
         }
         VRow {

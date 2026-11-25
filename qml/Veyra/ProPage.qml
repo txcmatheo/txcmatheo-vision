@@ -431,11 +431,15 @@ VPage {
                         width: 9; height: 9; radius: 4.5
                         anchors.verticalCenter: parent.verticalCenter
                         color: Theme.err
-                        SequentialAnimation on opacity {
-                            running: veyra.recording || recordControl.countdown > 0
-                            loops: Animation.Infinite
-                            NumberAnimation { to: 0.25; duration: veyra.recording ? 700 : 380; easing.type: Easing.InOutQuad }
-                            NumberAnimation { to: 1.0; duration: veyra.recording ? 700 : 380; easing.type: Easing.InOutQuad }
+                        // PushFPS (after 4.5.0): a blink, not a fade. A fade redrew the whole software-rendered
+                        // window at every refresh for the length of a recording; the blink redraws it twice a second.
+                        readonly property bool blinking: veyra.recording || recordControl.countdown > 0
+                        onBlinkingChanged: if (!blinking) opacity = 1
+                        Timer {
+                            interval: veyra.recording ? 700 : 380
+                            repeat: true
+                            running: recordDot.blinking
+                            onTriggered: recordDot.opacity = recordDot.opacity > 0.6 ? 0.3 : 1.0
                         }
                     }
                     Text {

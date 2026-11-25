@@ -176,7 +176,7 @@ Rectangle {
         Repeater {
             model: [
                 { id: "min", icon: "minus", tip: qsTr("最小化") },
-                { id: "max", icon: "max", tip: bar.maximized ? qsTr("还原") : qsTr("最大化") },
+                { id: "max", icon: bar.maximized ? "winrestore" : "winmax", tip: bar.maximized ? qsTr("还原") : qsTr("最大化") },
                 { id: "close", icon: "x", tip: qsTr("关闭") }
             ]
             delegate: Item {

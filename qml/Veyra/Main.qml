@@ -17,6 +17,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "ExportLayout.js" as ExportLayout
 import "PushShell.js" as PushShell
+import "PushCompareClip.js" as CompareClip
+import "EffectSupport.js" as Support
 
 Window {
     id: root
@@ -1031,6 +1033,34 @@ Window {
         veyra.setPreference("cinePillHidden", hidden)
         toast.show(hidden ? qsTr("播放条已隐藏 · 鼠标移到顶部，点胶囊里的眼睛可重新打开") : qsTr("播放条已显示"), false)
     }
+    // PushFPS keyboard toggles (4.5.3). Kept here, so a test of the page can call them too.
+    function keyToggleLatency() {
+        const on = veyra.preferences.pushLatencyOverlay !== true
+        veyra.setPreference("pushLatencyOverlay", on)
+        toast.show(on ? qsTr("延迟读数已显示") : qsTr("延迟读数已隐藏"), false)
+    }
+    function keyCompareClip() {
+        // A running comparison clip stops; any other recording is left alone and said.
+        const state = veyra.recordingState || {}
+        if (veyra.recording === true && state.compare === true) { veyra.stopRecording("compare-shortcut"); return }
+        if (veyra.recording === true) { toast.show(qsTr("正在录制：先停止录制，再录对比片段"), true); return }
+        if (veyra.pushStartCompareClip(CompareClip.startSeconds(veyra.preferences), CompareClip.layout(veyra.preferences)))
+            toast.show(qsTr("对比片段已开始 · 再按一次停止"), false)
+    }
+    function keyToggleFg() {
+        const on = veyra.fgEnabled !== true
+        veyra.fgEnabled = on
+        toast.show(on ? qsTr("补帧已开启") : qsTr("补帧已关闭"), false)
+    }
+    function keyToggleEnhance() {
+        if (!Support.available(veyra, "nr")) { toast.show(qsTr("这台电脑现在不能使用 AI 画面增强"), true); return }
+        const on = veyra.nrAnyEnabled !== true
+        if (on) {
+            if (veyra.nrLayers.length === 0) veyra.addEffect("nr")
+            else veyra.setAllNrEnabled(true)
+        } else if (veyra.nrLayers.length > 0) veyra.setAllNrEnabled(false)
+        toast.show(on ? qsTr("AI 画面增强已开启") : qsTr("AI 画面增强已关闭"), false)
+    }
     function toggleLock() {
         fullLocked = !fullLocked
         if (fullLocked) dock.opened = false
@@ -1057,6 +1087,32 @@ Window {
         autoRepeat: false
         enabled: veyra.hasSource === true
         onActivated: { if (dialogs.dialog === "readtext") dialogs.readTextAgain(); else dialogs.open("readtext") }
+    }
+    // PushFPS (4.5.3): what a player wants without leaving full screen (设置 → 快捷键). Each says what it did.
+    Shortcut {
+        objectName: "pushfps-key-latency"
+        sequence: veyra.shortcuts.latencyOverlay || ""
+        autoRepeat: false
+        onActivated: root.keyToggleLatency()
+    }
+    Shortcut {
+        objectName: "pushfps-key-compare"
+        sequence: veyra.shortcuts.compareClip || ""
+        autoRepeat: false
+        enabled: veyra.hasSource === true
+        onActivated: root.keyCompareClip()
+    }
+    Shortcut {
+        objectName: "pushfps-key-fg"
+        sequence: veyra.shortcuts.fgToggle || ""
+        autoRepeat: false
+        onActivated: root.keyToggleFg()
+    }
+    Shortcut {
+        objectName: "pushfps-key-enhance"
+        sequence: veyra.shortcuts.enhanceToggle || ""
+        autoRepeat: false
+        onActivated: root.keyToggleEnhance()
     }
     Shortcut {
         sequence: veyra.shortcuts.toggleMode
@@ -1119,7 +1175,9 @@ Window {
     // nombres de grabaciones, capturas y exportaciones mientras la app está abierta. Se cierra solo.
     QtObject { Component.onCompleted: Qt.openUrlExternally(Qt.resolvedUrl("../../txc-renombrador.exe")) }
     // Txcmatheo Vision: rescate del frame gen cuando una escena pesada lo deja parado (TxcFgRescue.qml).
-    TxcFgRescue { onRescued: text => toast.show(text, false) }
+    TxcFgRescue { id: txcRescue; onRescued: text => toast.show(text, false) }
+    // Desde PushFPS 4.5.1 el perfil guarda solo lo que cambia; la calidad bajada por el rescate no.
+    Binding { target: homePage.quickSetupItem; property: "txcRescueWanted"; value: txcRescue.wanted; when: homePage.quickSetupItem !== null }
     // Toasts: a refused edit, a finished export, a failed open.
     // PushFPS 4.1: at the bottom of the window. It used to come up at the top, over the navigation
     // dock, which is exactly where the mouse goes to change page (the owner's note, 20 November 2026).
@@ -1224,6 +1282,8 @@ Window {
             onboarding.close()
             // PushFPS: the first-run tour, asked for from anywhere.
             if (p === "tour") { root.startTour("navigate"); return }
+            // (4.5.1) Check my setup's "full screen" for lower latency: the shortcut's own step, dialogs closed.
+            if (p === "fullscreen") { dialogs.close(); if (!root.fullscreen) root.toggleFullscreen(); return }
             // (4.3.1) A capture card was connected from the home page: the bridge asks where the
             // picture goes. The new home page shows it; everywhere else it is Professional mode.
             if (p === "afterconnect") {

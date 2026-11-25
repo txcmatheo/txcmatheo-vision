@@ -44,7 +44,7 @@ def make_zip(root, rels, dest):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--app", default=os.path.join(os.path.expanduser("~"), "Desktop", "Txcmatheo Vision 4.5.0"))
+    ap.add_argument("--app", default=os.path.join(os.path.expanduser("~"), "Desktop", "Txcmatheo Vision 4.5.4"))
     ap.add_argument("--owner", required=True)
     ap.add_argument("--notes", default="")
     ap.add_argument("--full", action="store_true")
@@ -80,7 +80,9 @@ def main():
                     "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll", cs], check=True)
     shutil.copy2(os.path.join(stage, "app", "LEEME - Txcmatheo Vision.txt"), stage)
 
-    full_needed = a.full or not state.get("base") or state.get("engine") != engine
+    # Paquete completo solo si cambia el motor Veyra; una versión nueva de PushFPS sobre el mismo motor va
+    # en parche (solo los archivos distintos, mucho más ligero que el completo de ~830 MB).
+    full_needed = a.full or not state.get("base") or state.get("engine", "").split(" / ")[0] != engine.split(" / ")[0]
     base = version if full_needed else state["base"]
     json.dump({"version": version, "base": base}, open(os.path.join(stage, "app", "txc-version.json"), "w"))
     idx = index(stage)

@@ -7,10 +7,10 @@ Txcmatheo Vision no recompila nada. Se arma así:
    https://github.com/Likely7/Veyra-NRVideo/releases/tag/v2.2.1
    Código fuente: https://github.com/Likely7/Veyra-NRVideo
 
-2) Encima, los archivos de PushFPS 4.5.0 (PushFPS-files del zip de Windows), sin cambios en sus programas.
-   https://github.com/DosukaSOL/PushFPS/releases/tag/v4.5.0
-   Código fuente: https://github.com/DosukaSOL/PushFPS/tree/v4.5.0
-   (las bibliotecas de streaming están en PushFPS-4.5.0-streaming-source.zip de esa misma página)
+2) Encima, los archivos de PushFPS 4.5.4 (PushFPS-files del zip de Windows), sin cambios en sus programas.
+   https://github.com/DosukaSOL/PushFPS/releases/tag/v4.5.4
+   Código fuente: https://github.com/DosukaSOL/PushFPS/tree/v4.5.4
+   (las bibliotecas de streaming están en PushFPS-4.5.4-streaming-source.zip de esa misma página)
 
 3) Cambios de Txcmatheo:
    - La interfaz: los archivos de qml\Veyra (son el código fuente: QML de texto, se pueden leer y editar).

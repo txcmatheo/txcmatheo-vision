@@ -71,7 +71,11 @@ VGroup {
             else veyra.fgLowQueue = true
             veyra.setPreference("pushAutoFullscreen", true)
             if (quick.vrrCapable) quick.setSmoothPacing(true)
-            veyra.logUi("push-latency", "lowest latency on nvidia=" + nvidia + " vrr=" + quick.vrrCapable)
+            // Full screen on connect only acts at the next connection; with a picture playing the
+            // window goes full screen now (Main.qml leaves it alone when it already is), or the
+            // switch seems to do nothing (a report after 4.5.0).
+            if (veyra.running === true) veyra.navigate("fullscreen")
+            veyra.logUi("push-latency", "lowest latency on nvidia=" + nvidia + " vrr=" + quick.vrrCapable + " playing=" + (veyra.running === true))
             return
         }
         let saved = null
@@ -607,6 +611,67 @@ VGroup {
         p.v = 1
         return veyra.setPreference("pushProfiles", JSON.stringify(p))
     }
+    // The chosen game profile and the current console's profile follow what is changed while they are
+    // chosen. Until 4.5.1 a profile only held what it was saved with: a change made after choosing it
+    // played on, and the next time the profile was chosen (after a restart or an update, where people
+    // noticed it) the old values came back, which read as "profiles are not saved". A value the quick
+    // setup cannot read just now (a target set by hand in Professional mode, no enhancement layer to read
+    // the look from) keeps what the profile had. Nothing is written for a few seconds after a profile is
+    // applied, so the settings it asked for are not taken back before they have arrived.
+    readonly property string liveProfile: JSON.stringify(quick.snapshot())
+    property double profileQuietUntil: 0
+    property bool keepsProfiles: true   // tests that drive profiles step by step switch it off
+    // Txcmatheo Vision: calidad VFG de antes de un rescate del frame gen (TxcFgRescue.wanted; -1 sin
+    // rescate). Mientras dura, la calidad bajada es temporal y no se guarda en el perfil.
+    property int txcRescueWanted: -1
+    // A change still waiting is kept before another profile is chosen.
+    function flushProfiles() { if (quick.keepsProfiles && profileKeep.running && Date.now() >= quick.profileQuietUntil) { profileKeep.stop(); quick.keepProfiles() } }
+    function quietProfiles() { quick.profileQuietUntil = Date.now() + 3000; if (quick.keepsProfiles) profileKeep.restart() }
+    onLiveProfileChanged: if (quick.keepsProfiles) profileKeep.restart()
+    Timer {
+        id: profileKeep
+        objectName: "pushfps-profile-keep"
+        interval: 1500
+        onTriggered: {
+            const wait = quick.profileQuietUntil - Date.now()
+            if (wait > 0) { profileKeep.interval = Math.max(100, wait); profileKeep.restart(); return }
+            profileKeep.interval = 1500
+            quick.keepProfiles()
+        }
+    }
+    function mergedSnapshot(old) {
+        const s = quick.snapshot()
+        const out = (old && typeof old === "object") ? JSON.parse(JSON.stringify(old)) : {}
+        for (const k in s) {
+            if (k === "target" && (!quick.fgPossible || ["off", "60", "90", "120", "monitor"].indexOf(s.target) < 0)) continue
+            // What this PC cannot run right now is not read as "off" (applySnapshot skips it the same way).
+            if (k === "enhance" && !quick.nrPossible) continue
+            if (k === "adaptive" && !quick.adaptivePossible) continue
+            if ((k === "pacing" || k === "hudLock") && !quick.ownTechPossible) continue
+            if (k === "lowLatency" && veyra.nvidiaLowLatencyAvailable !== true) continue
+            if (k === "vfgQuality" && quick.txcRescueWanted >= 0) continue   // Txcmatheo: rescate en curso
+            out[k] = s[k]
+        }
+        return out
+    }
+    // Returns whether anything was written.
+    function keepProfiles() {
+        const p = copyProfiles()
+        const before = JSON.stringify(p)
+        if (!p.consoles || typeof p.consoles !== "object" || Array.isArray(p.consoles)) p.consoles = {}
+        p.consoles[quick.consoleId] = quick.mergedSnapshot(p.consoles[quick.consoleId])
+        if (quick.activeGame.length > 0 && Array.isArray(p.games)) {
+            const i = p.games.findIndex(g => g && g.name === quick.activeGame)
+            if (i >= 0 && p.games[i].console === quick.consoleId) {
+                const g = quick.mergedSnapshot(p.games[i])
+                g.name = p.games[i].name; g.console = p.games[i].console; g.preset = p.games[i].preset || ""
+                p.games[i] = g
+            }
+        }
+        p.v = 1
+        if (JSON.stringify(p) === before) return false
+        return writeProfiles(p)
+    }
     function copyProfiles() { return JSON.parse(JSON.stringify(quick.profiles)) }
     function applySnapshot(s) {
         if (!s) return
@@ -659,6 +724,8 @@ VGroup {
     }
     function switchConsole(id) {
         if (id === quick.consoleId) return
+        quick.flushProfiles()
+        quick.quietProfiles()
         const p = copyProfiles()
         if (!p.consoles || typeof p.consoles !== "object") p.consoles = {}
         p.consoles[quick.consoleId] = snapshot()
@@ -685,6 +752,8 @@ VGroup {
         return writeProfiles(p)
     }
     function applyGame(name) {
+        quick.flushProfiles()
+        quick.quietProfiles()
         const g = quick.games.find(x => x.name === name)
         const p = copyProfiles()
         p.game = g ? name : ""
@@ -1088,7 +1157,7 @@ VGroup {
             id: gameRow
             objectName: "pushfps-game-row"
             label: qsTr("游戏配置")
-            hint: quick.activeGame.length > 0 ? "" : qsTr("把当前设置存为某个游戏的配置，之后一键切换")
+            hint: quick.activeGame.length > 0 ? qsTr("此配置会记住你接下来做的更改") : qsTr("把当前设置存为某个游戏的配置，之后一键切换")
             property bool naming: false
             RowLayout {
                 spacing: 4
@@ -1368,16 +1437,40 @@ VGroup {
             // Not possible: the reason, and when the card could run it but its files were left out at
             // installation (they are the installer's optional extras), how to get them.
             readonly property var support: Support.status(veyra, "nr")
+            // (4.5.2) Its files left out at installation: one button installs them (UpdateChecker::installExtras,
+            // the signed update path for the version installed, with the installer's optional extras).
+            readonly property var updates: veyra.updates || null
+            readonly property bool extrasOffered: !quick.nrPossible && support.missingFiles === true
+                                                  && updates !== null && updates.canInstallExtras === true
+            readonly property string installing: updates ? String(updates.installState || "") : ""
+            readonly property bool busy: installing === "verifying" || installing === "downloading" || installing === "installing"
             hint: quick.nrPossible ? qsTr("关闭时只做补帧。开启后每帧都经过 NVIDIA 神经渲染（DLSS 5 NR）增强，画面更清晰，但更耗 GPU")
-                                   : (support.reason || "") + (support.missingFiles === true
-                                       ? " " + qsTr("它属于安装时可选的实验性附加组件：重新运行 Install-PushFPS.cmd，询问时回答 y 即可，设置会保留") : "")
+                  : extrasOffered && busy ? (installing === "downloading"
+                        ? qsTr("正在下载… %1%").arg(Math.round(Number(updates.installProgress || 0) * 100))
+                        : installing === "installing" ? qsTr("正在启动安装程序；PushFPS 会自动关闭，装好后重新打开")
+                        : qsTr("正在验证签名…"))
+                  : extrasOffered ? qsTr("安装时没有选择它的组件。点「安装」即可补装：PushFPS 会关闭，下载并安装组件后重新打开，设置会保留")
+                  : (support.reason || "") + (support.missingFiles === true
+                        ? " " + qsTr("它属于安装时可选的实验性附加组件：重新运行 Install-PushFPS.cmd，询问时回答 y 即可，设置会保留") : "")
             hintBelow: !quick.nrPossible && support.missingFiles === true
-            VSwitch {
-                objectName: "pushfps-enhance"
-                enabled: quick.nrPossible
-                opacity: enabled ? 1 : 0.4
-                checked: veyra.nrAnyEnabled
-                onToggled: checked => quick.setEnhancement(checked)
+            RowLayout {
+                spacing: 8
+                VButton {
+                    objectName: "pushfps-enhance-install"
+                    visible: enhanceRow.extrasOffered
+                    text: qsTr("安装")
+                    primary: true
+                    enabled: !enhanceRow.busy
+                    opacity: enabled ? 1 : 0.5
+                    onClicked: enhanceRow.updates.installExtras()
+                }
+                VSwitch {
+                    objectName: "pushfps-enhance"
+                    enabled: quick.nrPossible
+                    opacity: enabled ? 1 : 0.4
+                    checked: veyra.nrAnyEnabled
+                    onToggled: checked => quick.setEnhancement(checked)
+                }
             }
         }
         // The enhancement's look (shown while AI picture enhancement is on).

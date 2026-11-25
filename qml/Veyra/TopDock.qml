@@ -313,7 +313,7 @@ Item {
             Repeater {
                 model: [
                     { id: "min", icon: "minus", tip: qsTr("最小化") },
-                    { id: "max", icon: "max", tip: dockRoot.maximized ? qsTr("还原") : qsTr("最大化") },
+                    { id: "max", icon: dockRoot.maximized ? "winrestore" : "winmax", tip: dockRoot.maximized ? qsTr("还原") : qsTr("最大化") },
                     { id: "close", icon: "x", tip: qsTr("关闭") }
                 ]
                 delegate: Item {

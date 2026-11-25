@@ -91,7 +91,14 @@ DialogLayer {
             sharperFps: kind === "capture" && sharper.length > 0 ? Number(sharper[0].fps || 0) : 0,
             sharperPixel: sharper.length > 0 ? String(sharper[0].pixel || "") : "",
             audioChoice: veyra.captureAudioChoice === undefined ? 0 : Number(veyra.captureAudioChoice),
-            audioSuggestion: veyra.captureAudioSuggestion === undefined ? -1 : Number(veyra.captureAudioSuggestion)
+            audioSuggestion: veyra.captureAudioSuggestion === undefined ? -1 : Number(veyra.captureAudioSuggestion),
+            // 4.5.1: latency. A path or a queue nobody reported is never a finding.
+            displayPath: last.displayPath,
+            fullscreen: last.fullscreen === true,
+            nvidiaLatency: veyra.nvidiaLowLatencyAvailable === true,
+            lowLatencyKnown: veyra.nvidiaLowLatencyAvailable === true ? veyra.nvidiaLowLatency !== undefined : veyra.fgLowQueue !== undefined,
+            lowLatencyOn: veyra.nvidiaLowLatencyAvailable === true ? Number(veyra.nvidiaLowLatency || 0) > 0 : veyra.fgLowQueue === true,
+            pacingRepair: veyra.pacingRepair === true
         }
     }
     function idleText() {
@@ -146,6 +153,10 @@ DialogLayer {
         case "target-uneven": return qsTr("目标 %1 FPS 除不尽屏幕的 %2 Hz").arg(f.target).arg(f.hz)
         case "capture-compressed": return qsTr("采集卡送来的是压缩画面")
         case "no-sound": return qsTr("没有选声音输入")
+        case "latency-composed": return qsTr("画面先经过桌面合成，再显示到屏幕上")
+        case "latency-queue": return qsTr("低延迟没有开")
+        case "latency-pacing-repair": return qsTr("帧节奏修复开着")
+        case "latency-vsync": return qsTr("每帧都在等 %1 Hz 屏幕的下一次刷新").arg(f.hz)
         }
         return f.id
     }
@@ -164,6 +175,10 @@ DialogLayer {
         case "target-uneven": return qsTr("每帧在屏幕上停留的时间不一样长，看起来有顿挫。选一个能整除刷新率的目标，或开启可变刷新率（G-SYNC / FreeSync）")
         case "capture-compressed": return qsTr("在 %1 FPS 下它有不压缩的格式（%2），更清晰；代价是采集帧率变成 %1。60 FPS 的游戏会少一半画面，30 FPS 的游戏没有损失").arg(f.fps).arg(f.pixel)
         case "no-sound": return qsTr("这张采集卡自己的声音输入已经找到，现在连接却没有声音。在采集设置里可以一键选用")
+        case "latency-composed": return qsTr("在窗口里，Windows 先把画面合成到桌面上，通常要多等一次屏幕刷新。全屏时画面可以直接送到屏幕，延迟更低")
+        case "latency-queue": return qsTr("开启后等着显示的画面更少，从采集到屏幕更快。几乎没有代价")
+        case "latency-pacing-repair": return qsTr("它把画面重新对齐到稳定的节奏，最多晚一次采集刷新。帧率稳定的游戏关掉它，延迟更低")
+        case "latency-vsync": return qsTr("平滑帧节奏让每帧等到屏幕刷新才显示，这块屏幕最多多等约 %1 毫秒，而且它没有可变刷新率。关掉后延迟更低，但生成的画面偶尔会被跳过，看起来有顿挫").arg(f.ms)
         }
         return ""
     }
@@ -178,6 +193,10 @@ DialogLayer {
         case "pushflow-room": return [{ label: qsTr("试试「%1」").arg(diag.flowTierName(f.tier + 1)), arg: f.tier + 1 }]
         case "capture-compressed":
         case "no-sound": return [{ label: qsTr("打开采集设置"), arg: 0 }]
+        case "latency-composed": return [{ label: qsTr("全屏"), arg: 0 }]
+        case "latency-queue": return [{ label: qsTr("开启低延迟"), arg: 0 }]
+        case "latency-pacing-repair": return [{ label: qsTr("关闭帧节奏修复"), arg: 0 }]
+        case "latency-vsync": return [{ label: qsTr("关闭平滑帧节奏"), arg: 0 }]
         }
         return []
     }
@@ -246,6 +265,31 @@ DialogLayer {
         case "no-sound":
             veyra.navigate("capture")
             break
+        case "latency-composed":
+            veyra.navigate("fullscreen")   // Main.qml: full screen, as the shortcut does
+            break
+        case "latency-queue": {
+            const before = { nvidia: Number(veyra.nvidiaLowLatency || 0), queue: veyra.fgLowQueue === true }
+            if (f.nvidia === true) veyra.nvidiaLowLatency = 1
+            else veyra.fgLowQueue = true
+            diag.remember(f.id, before)
+            break
+        }
+        case "latency-pacing-repair":
+            veyra.pacingRepair = false
+            diag.remember(f.id, true)
+            break
+        case "latency-vsync": {
+            // Quick setup's smooth frame pacing switched off (PushQuickSetup.qml setSmoothPacing).
+            const before = { sync: Number(veyra.displaySync), vrr: veyra.variableRefresh === true, rate: Number(veyra.outputRateMode),
+                             pref: veyra.preferences.pushSmoothPacing }
+            veyra.displaySync = 2
+            veyra.variableRefresh = false
+            if (veyra.outputRateMode === 1) veyra.outputRateMode = 0
+            veyra.setPreference("pushSmoothPacing", false)
+            diag.remember(f.id, before)
+            break
+        }
         }
     }
     function undo(f) {
@@ -259,6 +303,17 @@ DialogLayer {
             if (before.target >= 1 && Number(veyra.srTargetIndex) !== before.target) veyra.srTargetIndex = before.target
         }
         else if (f.id === "vfg-quality" || f.id === "pushflow-room") veyra.vfgQuality = Number(before)
+        else if (f.id === "latency-queue") {
+            if (veyra.nvidiaLowLatencyAvailable === true) veyra.nvidiaLowLatency = before.nvidia
+            else veyra.fgLowQueue = before.queue
+        }
+        else if (f.id === "latency-pacing-repair") veyra.pacingRepair = before === true
+        else if (f.id === "latency-vsync") {
+            veyra.displaySync = before.sync
+            veyra.variableRefresh = before.vrr
+            if (Number(veyra.outputRateMode) !== before.rate) veyra.outputRateMode = before.rate
+            veyra.setPreference("pushSmoothPacing", before.pref === true)
+        }
         else if (f.id === "fsr-lighter") {
             if (Number(veyra.flowQuality) !== before.quality) veyra.flowQuality = before.quality
             if ((veyra.amdFlowHalf === true) !== before.half) veyra.amdFlowHalf = before.half

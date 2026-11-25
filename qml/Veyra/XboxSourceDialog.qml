@@ -143,6 +143,21 @@ DialogLayer {
             hint: qsTr("兼容选项：画面出现持续花屏时尝试开启，断开后重新连接生效。可能增加 CPU 占用和延迟；超分和补帧仍使用 GPU。")
             VSwitch { objectName: "xbox-software-decode"; checked: xbDialog.st.softwareDecode === true; onToggled: checked => xbDialog.xb.set("softwareDecode", checked) }
         }
+        // PushFPS 4.5.3: the picture size asked of the service (xbox/PushStreamSize.h). Automatic sends what
+        // PushFPS always sent; 1440p is a request the console and the service may answer with less.
+        VRow {
+            objectName: "xbox-stream-size-row"
+            label: qsTr("画面分辨率")
+            hint: Number(xbDialog.st.streamSize || 0) === 1440
+                  ? qsTr("向主机请求 1440p。主机和服务决定是否给出；需要更快、更稳的网络。重新连接后生效")
+                  : qsTr("自动沿用一直以来的 1080p 请求。重新连接后生效")
+            VSeg {
+                objectName: "xbox-stream-size"
+                options: [{ id: "0", label: qsTr("自动") }, { id: "1080", label: "1080p" }, { id: "1440", label: "1440p" }]
+                current: String(Number(xbDialog.st.streamSize || 0))
+                onPicked: id => xbDialog.xb.set("streamSize", Number(id))
+            }
+        }
     }
     DialogNote { objectName: "xbox-status"; visible: (xbDialog.st.status || "").length > 0; text: (xbDialog.st.busy ? qsTr("处理中 · ") : "") + (xbDialog.st.status || "") }
 }

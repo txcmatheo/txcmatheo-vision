@@ -139,6 +139,20 @@ function findings(s) {
     if (s.kind === "capture" && Math.round(num(s.audioChoice, 0)) === -1 && Math.round(num(s.audioSuggestion, -1)) !== -1)
         out.push({ id: "no-sound", level: "better" })
 
+    // Latency (4.5.1). Each is offered with its price, never switched.
+    // The desktop composes the picture (a window, not full screen): about one refresh more before it is seen.
+    if (Math.round(num(s.displayPath, -1)) === 0 && s.fullscreen !== true)
+        out.push({ id: "latency-composed", level: "try" })
+    // The short queue (NVIDIA's low latency, or PushFPS's low queue on other cards) is off.
+    if (s.lowLatencyKnown === true && s.lowLatencyOn !== true)
+        out.push({ id: "latency-queue", level: "try", nvidia: s.nvidiaLatency === true })
+    // Frame Pacing Repair re-times frames, up to one capture refresh later.
+    if (fgOn && s.pacingRepair === true) out.push({ id: "latency-pacing-repair", level: "try" })
+    // Every frame waits for a refresh of a screen without a variable refresh rate, and the refreshes are far
+    // apart: up to a whole refresh more. Above 75 Hz the wait is short enough not to name.
+    if (s.vsync === true && s.vrr !== true && hz >= 1 && hz <= 75)
+        out.push({ id: "latency-vsync", level: "try", hz: Math.round(hz), ms: Math.round(1000 / hz) })
+
     return out
 }
 

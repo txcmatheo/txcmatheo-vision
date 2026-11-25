@@ -28,7 +28,11 @@ Rectangle {
 
     // Which dialog key shows this layer.
     property string key: ""
-    readonly property bool shown: key.length > 0 && dialogHost.dialog === key
+    // Shown only once the dialog exists: a dialog that DialogHost loads when it is first asked for (4.5.1) is made
+    // with its key already asked for, and still goes through onShownChanged (its own start-up there) and the entry.
+    property bool layerReady: false
+    Component.onCompleted: Qt.callLater(function() { dlg.layerReady = true })
+    readonly property bool shown: layerReady && key.length > 0 && dialogHost.dialog === key
     // M17: .dlg scale .9 -> 1 and translate 0 14px -> 0 over .55s --spring inside the
     // scrim's .2s fade; closing runs the same back while the scrim fades out.
     property real motionS: 0.9
