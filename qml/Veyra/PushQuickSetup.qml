@@ -8,6 +8,7 @@ import "PushGamePresets.js" as Presets
 import "PushCompareClip.js" as CompareClip
 import "PushCrop.js" as Crop
 import "PushUpscale.js" as Upscale
+import "TxcProfileCode.js" as TxcCode
 
 // PushFPS quick setup: the choices most console players make, above the detailed
 // controls. Every control here only sets existing settings (frame generation on/off,
@@ -772,6 +773,65 @@ VGroup {
         if (p.game === name) p.game = ""
         writeProfiles(p)
     }
+    // Txcmatheo Vision: compartir un perfil con un código (TxcProfileCode.js). Lleva el perfil y, aparte, lo que
+    // solo se ajusta en modo Pro (método, multiplicador, Output cap, tamaño y fuerza del NR), leído en vivo.
+    function txcExportCode() {
+        const pro = { fg: veyra.fgEnabled === true, backend: String(veyra.fgBackendName || ""), mult: Number(veyra.fgMultiplier),
+                      auto: veyra.fgAutoMultiplierEnabled === true, rate: Number(veyra.outputRateMode), fps: Number(veyra.outputCustomFps) }
+        const l = veyra.nrLayers && veyra.nrLayers.length > 0 ? veyra.nrLayers[0] : null
+        if (l) pro.nr = { sizePolicy: Number(l.sizePolicy), sizePercent: Number(l.sizePercent ?? 100), manual: l.manualSize === true,
+                          intensity: Number(l.intensity), performance: l.performance !== false }
+        return TxcCode.encode({ name: quick.activeGame.length > 0 ? quick.activeGame : "Perfil", profile: quick.snapshot(), pro: pro })
+    }
+    property var txcPendingPro: null
+    // Crea un perfil de juego con lo del código (sin pisar uno tuyo: le añade un número) y lo aplica.
+    // Devuelve el nombre del perfil creado, o "" si el código no vale o ya no cabe otro perfil.
+    function txcImportCode(text) {
+        const d = TxcCode.decode(text)
+        if (!d) return ""
+        quick.flushProfiles()
+        const p = copyProfiles()
+        const list = Array.isArray(p.games) ? p.games.slice() : []
+        if (list.length >= quick.maxGames) return ""
+        let name = d.name, n = 2
+        while (list.some(g => g && g.name === name)) name = d.name.slice(0, 35) + " (" + (n++) + ")"
+        const g = JSON.parse(JSON.stringify(d.profile))
+        g.name = name; g.console = quick.consoleId; g.preset = ""
+        list.push(g)
+        list.sort((a, b) => a.name.localeCompare(b.name))
+        p.games = list
+        if (!writeProfiles(p)) return ""
+        // El método va antes del perfil: el multiplicador que elige el objetivo depende de él.
+        const pro = d.pro || {}
+        if (pro.backend && (veyra.fgBackendChoices || []).some(o => o.id === pro.backend && o.disabled !== true)
+                && veyra.fgBackendName !== pro.backend) veyra.fgBackendName = pro.backend
+        quick.applyGame(name)
+        quick.txcPendingPro = pro
+        txcProLater.restart()
+        return name
+    }
+    // Lo de modo Pro, cuando el perfil ya está aplicado (la capa NR nueva y el cambio de método tardan un momento).
+    function txcApplyPro(pro) {
+        if (!pro) return
+        if (pro.fg === true) {
+            if (pro.mult !== undefined && (veyra.fgMultiplierChoices || []).some(o => parseInt(o.id) === pro.mult && o.disabled !== true))
+                veyra.fgMultiplier = pro.mult
+            if (typeof pro.auto === "boolean" && veyra.fgAutoMultiplierEnabled !== undefined) veyra.fgAutoMultiplierEnabled = pro.auto
+            if (!veyra.presentationOwned && pro.rate !== undefined) {
+                if (pro.rate === 2 && pro.fps !== undefined) veyra.outputCustomFps = pro.fps
+                veyra.outputRateMode = pro.rate
+            }
+        }
+        const l = veyra.nrLayers && veyra.nrLayers.length > 0 ? veyra.nrLayers[0] : null
+        if (l && pro.nr) {
+            if (pro.nr.manual === true && pro.nr.sizePercent !== undefined) veyra.setNrLayerParameter(l.index, "sizePercent", pro.nr.sizePercent)
+            else if (pro.nr.sizePolicy !== undefined && pro.nr.sizePolicy !== l.sizePolicy) veyra.setNrLayerParameter(l.index, "sizePolicy", pro.nr.sizePolicy)
+            if (pro.nr.intensity !== undefined && Math.abs(pro.nr.intensity - Number(l.intensity)) >= 0.005) veyra.setNrLayerParameter(l.index, "intensity", pro.nr.intensity)
+            if (typeof pro.nr.performance === "boolean" && pro.nr.performance !== (l.performance !== false))
+                veyra.setNrLayerParameter(l.index, "performance", pro.nr.performance ? 1 : 0)
+        }
+    }
+    Timer { id: txcProLater; interval: 1500; onTriggered: { const pro = quick.txcPendingPro; quick.txcPendingPro = null; quick.txcApplyPro(pro) } }
     // A capture card that captures 120 Hz (the 4K X; the 4K S at 1080p/1440p) gets each
     // frame in 8 ms instead of 17, and lets 40 FPS (120 Hz mode) games through; Switch 2 docked
     // output tops out at 60 Hz at 4K, so the extra line is for PlayStation and Xbox. A card that only
@@ -1197,6 +1257,53 @@ VGroup {
                     onClicked: {
                         if (gameRow.naming) { gameRow.naming = false; return }
                         quick.deleteGame(quick.activeGame)
+                    }
+                }
+            }
+        }
+        // Txcmatheo Vision: compartir un perfil con un código que se copia y se pega (TxcProfileCode.js).
+        VRow {
+            id: txcShareRow
+            objectName: "txc-share-profile-row"
+            readonly property bool es: Qt.uiLanguage.indexOf("es") === 0
+            property string note: ""
+            label: es ? "Compartir perfil" : "Share profile"
+            hint: note.length > 0 ? note
+                  : (es ? "Copia un código con este perfil (también frame gen y realce de modo Pro) o pega el de un amigo"
+                        : "Copy a code with this profile (frame gen and enhancement from Pro mode too) or paste a friend's")
+            hintBelow: true
+            RowLayout {
+                spacing: 4
+                TextInput { id: txcClip; visible: false }
+                VButton {
+                    objectName: "txc-profile-copy"
+                    text: txcShareRow.es ? "Copiar código" : "Copy code"
+                    ghost: true
+                    onClicked: {
+                        txcClip.text = quick.txcExportCode()
+                        txcClip.selectAll(); txcClip.copy()
+                        txcShareRow.note = txcShareRow.es ? "Código copiado: pégalo en Discord o WhatsApp"
+                                                          : "Code copied: paste it in Discord or WhatsApp"
+                    }
+                }
+                DialogTextField {
+                    id: txcPaste
+                    objectName: "txc-profile-paste"
+                    implicitWidth: 120
+                    placeholder: "TXC1:..."
+                }
+                VButton {
+                    objectName: "txc-profile-import"
+                    text: txcShareRow.es ? "Importar" : "Import"
+                    ghost: true
+                    enabled: txcPaste.text.trim().length > 0
+                    onClicked: {
+                        const name = quick.txcImportCode(txcPaste.text)
+                        if (name.length > 0) txcPaste.text = ""
+                        txcShareRow.note = name.length > 0
+                            ? (txcShareRow.es ? "Perfil importado: " + name : "Profile imported: " + name)
+                            : (txcShareRow.es ? "Ese código no es un perfil de Txcmatheo Vision (o ya tienes el máximo de perfiles)"
+                                              : "That is not a Txcmatheo Vision profile code (or you have the most profiles already)")
                     }
                 }
             }
