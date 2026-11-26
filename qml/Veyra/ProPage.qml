@@ -8,6 +8,7 @@
 // reorderable here: the user's reason was that dragging breaks the pipeline for
 // beginners. Node mode is where free arrangement lives, and it is a separate page
 // reached through the view toggle (which confirms first, per the design).
+import "TxcText.js" as TxcText
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
@@ -681,7 +682,7 @@ VPage {
                 }
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: veyra.statusText
+                    text: TxcText.fix(veyra.statusText, s => qsTr(s))
                     color: Theme.t2
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.fsH3
@@ -2513,7 +2514,7 @@ VPage {
                     objectName: "pro-inspector-status"
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    text: veyra.statusText
+                    text: TxcText.fix(veyra.statusText, s => qsTr(s))
                     color: Theme.t2
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.fsSmall

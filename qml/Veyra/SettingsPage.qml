@@ -1821,11 +1821,11 @@ VPage {
                         }
                         VRow {
                             label: qsTr("PSN 账号")
-                            hint: qsTr("“获取 Account ID”会打开 PS5 串流窗口，并在索尼自己的页面登录后替你填入 Account ID。")
+                            hint: qsTr("Get Account ID opens PSNTools in your browser and the PS5 streaming window: copy the Account ID there.")
                             hintBelow: true
                             RowLayout {
                                 spacing: 6
-                                VButton { objectName: "set-ps5-account-lookup"; text: qsTr("获取 Account ID"); ghost: true; onClicked: { veyra.openPs5Dialog(); veyra.ps5OpenAccountChecker() } }
+                                VButton { objectName: "set-ps5-account-lookup"; text: qsTr("获取 Account ID"); ghost: true; onClicked: { veyra.openPs5Dialog(); Qt.openUrlExternally("https://www.psntools.com/psn/checker/") } }
                                 VButton { objectName: "set-ps5-pairing"; text: qsTr("配对设置"); ghost: true; onClicked: veyra.openPs5Dialog() }
                             }
                         }

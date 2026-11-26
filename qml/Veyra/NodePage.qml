@@ -8,6 +8,7 @@
 //
 // Pinned stages: 补帧 is always last, RTX Video HDR always immediately before it.
 // Both are drawn locked; everything else is freely arrangeable.
+import "TxcText.js" as TxcText
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -401,7 +402,7 @@ VPage {
                 Text {
                     anchors.centerIn: parent
                     visible: !veyra.hasSource
-                    text: veyra.statusText
+                    text: TxcText.fix(veyra.statusText, s => qsTr(s))
                     color: Theme.t3
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.fsH3

@@ -1,4 +1,5 @@
 // ps5 dialog: source/settings logic is owned by this component.
+import "TxcText.js" as TxcText
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -45,7 +46,7 @@ DialogLayer {
 
     // PushFPS: what to do next, and what went wrong, stands first. At the bottom it was under the last row of a
     // long dialog: people pressed Connect, read the line there and never saw the fields it was about.
-    DialogNote { objectName: "ps5-status"; visible: (veyra.ps5.status || "").length > 0; text: (veyra.ps5.busy ? qsTr("处理中 · ") : "") + (veyra.ps5.status || "") }
+    DialogNote { objectName: "ps5-status"; visible: (veyra.ps5.status || "").length > 0; text: (veyra.ps5.busy ? qsTr("处理中 · ") : "") + TxcText.fix(veyra.ps5.status, s => qsTr(s)) }
     DialogSection { text: qsTr("主机") }
     DialogGroup {
         VRow {
@@ -85,21 +86,22 @@ DialogLayer {
             // People typed their PSN name here with the old hint right under the box and never pressed the button.
             // Since 4.4.6 the button opens Sony's own sign-in page (never a lookup website) and the row under this
             // one takes back the address the page lands on.
-            hint: qsTr("点“获取 Account ID”，在索尼自己的页面登录，PushFPS 会替你填入。不是 PSN 昵称。不要在任何地方粘贴 NPSSO 码：它就是你的 PSN 登录。")
+            // Txcmatheo: the button opens PSNTools (no Sony sign-in); the ID is copied by hand.
+            hint: qsTr("Get Account ID opens PSNTools in your browser: search your PSN name and copy the Account ID (Base64, ends in =) into this box. It is not your PSN name.")
             hintBelow: true
             RowLayout {
                 spacing: 6
                 DialogTextField {
                     objectName: "ps5-account-id"; implicitWidth: 240; text: veyra.ps5.account || ""
                     placeholder: qsTr("数字 ID，不是昵称")
-                    onEdited: text => veyra.ps5Set("account", text)
-                    onTyped: text => { if (text === text.trim()) veyra.ps5Set("account", text) }
+                    onEdited: text => veyra.ps5Set("account", TxcText.cleanAccount(text))
+                    onTyped: text => { if (text === text.trim() || TxcText.cleanAccount(text) !== text.trim()) veyra.ps5Set("account", TxcText.cleanAccount(text)) }
                 }
                 VButton {
                     objectName: "ps5-account-lookup"; text: qsTr("获取 Account ID")
                     primary: !ps5Dialog.accountLooksRight; ghost: ps5Dialog.accountLooksRight
                     enabled: veyra.ps5.signInAsking !== true
-                    onClicked: veyra.ps5OpenAccountChecker()
+                    onClicked: Qt.openUrlExternally("https://www.psntools.com/psn/checker/")
                 }
             }
         }
