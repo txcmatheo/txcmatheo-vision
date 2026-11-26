@@ -1194,7 +1194,8 @@ Window {
     }
     Connections {
         target: veyra.updates
-        enabled: !Theme.txcShare
+        // Txcmatheo Vision: sin el aviso de PushFPS (su instalación de un clic pondría PushFPS original encima).
+        enabled: false
         function onUpdateAvailable(version) { updateBanner.show(version) }
     }
     // pages.css .canvas-toast: top 12px, padding 7px 12px, from translate -8px and
@@ -1444,7 +1445,7 @@ Window {
         function onPageChanged() { if (introLoader.item && root.page !== "home") introLoader.item.dismiss() }
     }
     Component.onCompleted: {
-        if (root.test.noUpdateCheck !== true && !Theme.txcShare) veyra.updates.startAutomaticCheck()
+        // Txcmatheo Vision: no se buscan versiones de PushFPS; Vision se actualiza con su lanzador.
         // --lang <code>: screenshots in another language (saved in that run's own --data-dir).
         if (root.test.lang !== undefined) veyra.setPreference("language", root.test.lang)
         if (root.test.prefs !== undefined) {

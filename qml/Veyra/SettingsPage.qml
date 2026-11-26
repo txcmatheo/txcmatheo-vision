@@ -2176,7 +2176,7 @@ VPage {
                     VGroup {
                         VRow {
                             label: qsTr("检查更新")
-                            visible: !Theme.txcShare
+                            visible: false // Txcmatheo Vision: buscar e instalar PushFPS original, quitado
                             // PushFPS signed updates (UpdateVerify.h): one click when the release is signed.
                             hint: veyra.updates.installState === "downloading" ? qsTr("正在下载更新… %1%").arg(Math.round(veyra.updates.installProgress * 100))
                                   : veyra.updates.installState === "verifying" ? qsTr("正在验证签名…")

@@ -48,6 +48,7 @@ def main():
     ap.add_argument("--owner", required=True)
     ap.add_argument("--notes", default="")
     ap.add_argument("--full", action="store_true")
+    ap.add_argument("--version", default="")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--out", default=os.path.join(tempfile.gettempdir(), "txcmatheo-publish"))
     a = ap.parse_args()
@@ -57,8 +58,21 @@ def main():
     pushfps = re.search(r"PushFPS ([0-9.]+)", pv).group(1)
     engine = re.search(r"Runtime: (.+)", pv).group(1).strip() + " / PushFPS " + pushfps
     n = state.get("n", {}).get(pushfps, 0) + 1
-    # 4.5.0 la primera publicación sobre PushFPS 4.5.0; después 4.5.0.1, 4.5.0.2…
-    version = pushfps if n == 1 else f"{pushfps}.{n - 1}"
+    # Numeración propia, sin seguir la de PushFPS: cada publicación sube el último número de la anterior
+    # (4.5.4.2 -> 4.5.4.3 aunque PushFPS vaya por la 5.0.0). --version solo si el usuario pide otro número.
+    last = state.get("last")
+    if a.version:
+        version = a.version
+    elif last:
+        parts = last.split(".") + ["0"] * (4 - len(last.split(".")))
+        parts[-1] = str(int(parts[-1]) + 1)
+        version = ".".join(parts)
+    else:
+        version = pushfps
+    assert re.fullmatch(r"[0-9]+(\.[0-9]+){2,3}", version), version
+    if last:
+        key = lambda v: [int(x) for x in v.split(".")] + [0] * (4 - len(v.split(".")))
+        assert key(version) > key(last), f"{version} no es mayor que {last}"
     tag = "v" + version
 
     if os.path.exists(a.out): shutil.rmtree(a.out)
