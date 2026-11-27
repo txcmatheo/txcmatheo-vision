@@ -338,7 +338,7 @@ VPage {
             VTag {
                 id: formatTag
                 objectName: "pro-format-tag"
-                text: veyra.sourceFormatText.length > 0 ? veyra.sourceFormatText : qsTr("未打开")
+                text: veyra.sourceFormatText.length > 0 ? TxcText.fix(veyra.sourceFormatText, s => qsTr(s)) : qsTr("未打开")
             }
             VTag {
                 id: outputTag
@@ -953,7 +953,7 @@ VPage {
                     Text { text: qsTr("色彩"); color: Theme.t3; font.family: Theme.fontUi; font.pixelSize: 12 }
                     Text {
                         Layout.fillWidth: true
-                        text: veyra.colorStatus.length > 0 ? veyra.colorStatus : "—"
+                        text: veyra.colorStatus.length > 0 ? TxcText.fix(veyra.colorStatus, s => qsTr(s)) : "—"
                         color: Theme.t1; font.family: Theme.fontMono; font.pixelSize: 12
                         horizontalAlignment: Text.AlignRight
                         elide: Text.ElideRight
@@ -1955,7 +1955,7 @@ VPage {
                         Text {
                             Layout.fillWidth: true
                             visible: !veyra.chainValid
-                            text: veyra.chainError
+                            text: TxcText.fix(veyra.chainError, s => qsTr(s))
                             color: Theme.err
                             font.family: Theme.fontUi
                             font.pixelSize: Theme.fsSmall

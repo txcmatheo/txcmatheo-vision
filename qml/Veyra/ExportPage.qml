@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "ExportLayout.js" as ExportLayout
+import "TxcText.js" as TxcText
 
 VPage {
     id: root
@@ -332,7 +333,7 @@ VPage {
                     visible: root.exportKind === "image"
                     VButton { Layout.fillWidth: true; text: qsTr("导出当前画面"); enabled: veyra.hasSource && !veyra.imageBatchActive; onClicked: veyra.saveFrameDialog() }
                     VButton { Layout.fillWidth: true; text: qsTr("批量处理图片…"); enabled: !veyra.imageBatchActive; onClicked: veyra.exportImagesDialog() }
-                    Note { text: veyra.imageBatchStatus }
+                    Note { text: TxcText.fix(veyra.imageBatchStatus, s => qsTr(s)) }
                     VButton { visible: veyra.imageBatchActive; text: qsTr("取消图片批次"); onClicked: veyra.cancelImageBatch() }
                 }
                 Note { visible: root.exportKind === "video"; text: qsTr("点击开始时冻结本批设置。") + (veyra.preferences.exportStopsPlayback !== false ? qsTr("开始导出时会关闭正在播放的内容，显卡全部留给导出。") : qsTr("导出期间可以继续预览其他文件，会和导出抢显卡。")) }
@@ -350,7 +351,7 @@ VPage {
         radius: Theme.rCard; color: Theme.card; border.color: Theme.stroke
         ColumnLayout {
             anchors.fill: parent; anchors.margins: root.compact ? 6 : 10; spacing: 5
-            Text { objectName: "export-status"; Layout.fillWidth: true; visible: !root.compact; text: veyra.exportStatus; color: Theme.t2; font.family: Theme.fontUi; font.pixelSize: 11; elide: Text.ElideRight; ToolTip.text: text; ToolTip.visible: statusHover.hovered; HoverHandler { id: statusHover } }
+            Text { objectName: "export-status"; Layout.fillWidth: true; visible: !root.compact; text: TxcText.fix(veyra.exportStatus, s => qsTr(s)); color: Theme.t2; font.family: Theme.fontUi; font.pixelSize: 11; elide: Text.ElideRight; ToolTip.text: text; ToolTip.visible: statusHover.hovered; HoverHandler { id: statusHover } }
             Basic.ProgressBar {
                 id: exportProgressBar
                 objectName: "export-progress"; Layout.fillWidth: true; Layout.preferredHeight: 5; from: 0; to: 1; value: veyra.exportProgress
@@ -359,7 +360,7 @@ VPage {
             }
             RowLayout {
                 Layout.fillWidth: true; spacing: 6
-                Text { visible: root.compact; Layout.fillWidth: true; text: veyra.exportStatus; color: Theme.t2; elide: Text.ElideRight; font.pixelSize: 11 }
+                Text { visible: root.compact; Layout.fillWidth: true; text: TxcText.fix(veyra.exportStatus, s => qsTr(s)); color: Theme.t2; elide: Text.ElideRight; font.pixelSize: 11 }
                 VButton { objectName: "export-start"; Layout.fillWidth: !root.compact; primary: !veyra.exportRunning; text: veyra.exportRunning ? (veyra.exportPaused ? qsTr("继续导出") : qsTr("暂停导出")) : qsTr("开始导出 ") + veyra.exportReadyCount + qsTr(" 项"); enabled: root.exportKind === "video" && (veyra.exportRunning || (veyra.exportReadyCount > 0 && (veyra.exportRateControl === 2 || bitrateEditor.acceptableInput))); onClicked: veyra.exportRunning ? veyra.pauseExport(!veyra.exportPaused) : veyra.startExport() }
                 VButton { objectName: "export-cancel"; visible: veyra.exportRunning; text: qsTr("取消"); onClicked: veyra.cancelExport() }
             }

@@ -5,6 +5,7 @@
 // is allowed; node mode (NodePage) is where free arrangement lives.
 import QtQuick
 import QtQuick.Layouts
+import "TxcText.js" as TxcText
 
 ColumnLayout {
     id: root
@@ -36,7 +37,7 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.topMargin: 6
         visible: !veyra.chainValid
-        text: veyra.chainError
+        text: TxcText.fix(veyra.chainError, s => qsTr(s))
         color: Theme.err
         wrapMode: Text.WordWrap
         font.family: Theme.fontUi

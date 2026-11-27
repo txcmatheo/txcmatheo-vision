@@ -44,7 +44,7 @@ def make_zip(root, rels, dest):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--app", default=os.path.join(os.path.expanduser("~"), "Desktop", "Txcmatheo Vision 4.5.4"))
+    ap.add_argument("--app", default=os.path.join(os.path.expanduser("~"), "Desktop", "Txcmatheo Vision 4.5.7"))
     ap.add_argument("--owner", required=True)
     ap.add_argument("--notes", default="")
     ap.add_argument("--full", action="store_true")
@@ -128,9 +128,19 @@ def main():
 
     if a.dry_run:
         print("dry-run: nada subido. Carpeta:", a.out); return
+    # Para amigos nuevos: el zip y el instalador .exe de esta versión en el escritorio; el .exe va también
+    # a la release (con nombre sin espacios: GitHub los cambia por puntos).
+    friend = os.path.join(os.path.expanduser("~"), "Desktop", f"Txcmatheo Vision {version} (para amigos).zip")
+    subprocess.run([sys.executable, os.path.join(REPO_DIR, "tools", "make-friend-zip.py"), stage, friend], check=True)
+    inst_name = f"Txcmatheo-Vision-{version}-instalador.exe"
+    inst = os.path.join(a.out, inst_name)
+    os.link(friend.replace(" (para amigos).zip", " (instalador).exe"), inst)
+    assets.append(inst)
     notes = ((a.notes or "Actualización de Txcmatheo Vision.") +
              "\n\n**¿Ya tienes Txcmatheo Vision con lanzador?** No hagas nada: abre \"Txcmatheo Vision.exe\" (el de fuera de la carpeta app) y se actualiza solo." +
-             f"\n\n**¿Primera vez, o tu carpeta no tiene una subcarpeta `app`?** Descarga el paquete completo: {manifest['full']['url']} — descomprímelo y abre \"Txcmatheo Vision.exe\". A partir de ahí se actualiza solo.")
+             f"\n\n**¿Primera vez?** Descarga el instalador **{inst_name}** (abajo, en Assets), ábrelo y pulsa Instalar. "
+             "Si Windows avisa \"Windows protegió tu PC\", pulsa Más información → Ejecutar de todas formas. A partir de ahí se actualiza solo." +
+             f"\n\n¿Prefieres sin instalar? Paquete completo en zip: {manifest['full']['url']} — descomprímelo y abre \"Txcmatheo Vision.exe\".")
     subprocess.run([GH, "release", "create", tag, *assets, "--repo", f"{a.owner}/{GH_REPO}", "--title", f"Txcmatheo Vision {version}",
                     "--notes", notes, "--latest"], check=True)
     state.setdefault("n", {})[pushfps] = n
@@ -143,5 +153,16 @@ def main():
     for p in (os.path.join(a.app, "qml", "Veyra", "TxcVersion.js"), os.path.join(REPO_DIR, "pushfps", "qml", "Veyra", "TxcVersion.js")):
         write_version(p, version)
     print("publicado:", tag)
+    # El usuario quiere solo los paquetes de la última versión en el escritorio: los de versiones anteriores
+    # ("Txcmatheo Vision <v> (para amigos).zip" / "(instalador).exe") van a la Papelera, solo tras publicar bien.
+    desk = os.path.join(os.path.expanduser("~"), "Desktop")
+    old = [os.path.join(desk, f) for f in os.listdir(desk)
+           if re.fullmatch(r"Txcmatheo Vision [0-9.]+ \((para amigos\)\.zip|instalador\)\.exe)", f)
+           and not f.startswith(f"Txcmatheo Vision {version} (")]
+    for f in old:
+        subprocess.run(["powershell", "-NoProfile", "-Command",
+                        "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($args[0], "
+                        "'OnlyErrorDialogs', 'SendToRecycleBin')", f], check=True)
+        print("a la Papelera:", os.path.basename(f))
 
 main()

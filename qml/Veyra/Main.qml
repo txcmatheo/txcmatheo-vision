@@ -19,6 +19,9 @@ import "ExportLayout.js" as ExportLayout
 import "PushShell.js" as PushShell
 import "PushCompareClip.js" as CompareClip
 import "EffectSupport.js" as Support
+import "TxcVersion.js" as TxcVersion
+import "TxcText.js" as TxcText
+import "PushKbm.js" as Kbm
 
 Window {
     id: root
@@ -37,7 +40,8 @@ Window {
     flags: Qt.Window | Qt.FramelessWindowHint
            | (veyra.passthroughActive ? Qt.WindowTransparentForInput : 0)
            | (veyra.gameInputActive ? Qt.WindowDoesNotAcceptFocus : 0)
-    title: "Txcmatheo Vision " + veyra.version
+    // Txcmatheo Vision: nuestra versión (la de bajo el logo), no la del exe de PushFPS ("4.5.7 - PushFPS").
+    title: "Txcmatheo Vision " + TxcVersion.version
 
     // Page ids match the prototype's PAGES keys so a design screenshot and an
     // app screenshot can be compared under the same name.
@@ -986,6 +990,27 @@ Window {
             veyra.moonlightCapture(true)
         }
     }
+    // PushFPS: a click on the picture gives the keyboard and mouse to the console (PushKbm.cpp), once they are
+    // switched on and a PS5 or Xbox session can take them; while switched on and nothing can take them yet
+    // (a capture card without PS5 controller control) the bridge says what is missing instead. While they
+    // are given, clicks go to the console.
+    TapHandler {
+        enabled: veyra.pushKbm && veyra.pushKbm.on === true && veyra.pushKbm.captured !== true && dialogs.dialog === ""
+        property bool pressOnCover: false
+        property bool pressOnPicture: false
+        onPressedChanged: if (pressed) {
+            pressOnCover = root.overVideoCover(point.scenePosition)
+            pressOnPicture = root.pictureContains(point.scenePosition)
+        }
+        onTapped: eventPoint => {
+            const p = eventPoint.position
+            if (pressOnCover || !pressOnPicture) return
+            if (root.page !== "min" && root.page !== "pro" && root.page !== "node" && root.page !== "home") return
+            if (p.x < videoHost.x || p.y < videoHost.y || p.x > videoHost.x + videoHost.width
+                || p.y > videoHost.y + videoHost.height) return
+            veyra.pushKbmCapture(true)
+        }
+    }
     // Stream statistics on and off. While a PC stream has the keyboard, the capture filter sees the keys
     // first and toggles the same switch.
     Shortcut {
@@ -1013,7 +1038,8 @@ Window {
         // an open dialog, which lives in the main window below it.
         cinema: root.cinema && !root.fullscreen
         pillTop: (root.maximized ? root.height : root.pictureHeight) - 46
-        shown: !root.onboardingActive && veyra.hasSource && !screenCrop.editing && !root.pillHidden && !veyra.gameInputActive && (root.fullscreen ? root.fullControls && !root.fullLocked
+        shown: !root.onboardingActive && veyra.hasSource && !screenCrop.editing && !root.pillHidden && !veyra.gameInputActive
+               && !(veyra.pushKbm && veyra.pushKbm.captured === true) && (root.fullscreen ? root.fullControls && !root.fullLocked
                                                    : root.cinema && root.shownPage === "min"
                                                      && root.leavingPage === "" && dialogs.dialog === ""
                                                      && root.visibility !== Window.Minimized)
@@ -1095,6 +1121,14 @@ Window {
         autoRepeat: false
         onActivated: root.keyToggleLatency()
     }
+    // PushFPS voice chat: this PC's microphone in a PS5 stream (Ps5SourceDialog "电脑麦克风").
+    Shortcut {
+        objectName: "pushfps-key-mic"
+        sequence: veyra.shortcuts.micMute || ""
+        autoRepeat: false
+        enabled: !!veyra.ps5 && veyra.ps5.mic === true && veyra.ps5.active === true
+        onActivated: veyra.ps5ToggleMicMute()
+    }
     Shortcut {
         objectName: "pushfps-key-compare"
         sequence: veyra.shortcuts.compareClip || ""
@@ -1175,6 +1209,14 @@ Window {
     // nombres de grabaciones, capturas y exportaciones mientras la app está abierta. Se cierra solo.
     QtObject { Component.onCompleted: Qt.openUrlExternally(Qt.resolvedUrl("../../txc-renombrador.exe")) }
     // Txcmatheo Vision: rescate del frame gen cuando una escena pesada lo deja parado (TxcFgRescue.qml).
+    // Txcmatheo Vision: ratón y teclado como mando oculto (PushQuickSetup, SettingsPage); si quedó encendido,
+    // se apaga al arrancar para que ni F12 ni un clic en la imagen se queden con el ratón.
+    QtObject {
+        Component.onCompleted: {
+            const cfg = Kbm.config(String(veyra.preferences.pushKbm || ""), veyra.pushKbmDefaults())
+            if (cfg.on) veyra.setPreference("pushKbm", Kbm.text(Kbm.changed(cfg, "on", false)))
+        }
+    }
     TxcFgRescue { id: txcRescue; onRescued: text => toast.show(text, false) }
     // Desde PushFPS 4.5.1 el perfil guarda solo lo que cambia; la calidad bajada por el rescate no.
     Binding { target: homePage.quickSetupItem; property: "txcRescueWanted"; value: txcRescue.wanted; when: homePage.quickSetupItem !== null }
@@ -1224,7 +1266,7 @@ Window {
         transform: Translate { id: toastShift; y: toast.on ? 0 : -8
             Behavior on y { NumberAnimation { duration: Theme.d(450); easing.bezierCurve: Theme.spring } } }
         Behavior on opacity { NumberAnimation { duration: Theme.d(200) } }
-        function show(m, bad) { toast.message = m; toast.isError = bad; toast.on = true; toastTimer.restart() }
+        function show(m, bad) { toast.message = TxcText.fix(m, s => qsTr(s)); toast.isError = bad; toast.on = true; toastTimer.restart() }
         Timer { id: toastTimer; interval: 2600; onTriggered: toast.on = false }
         Text {
             id: toastText
@@ -1294,7 +1336,7 @@ Window {
             }
             // A dialog key opens the dialog; anything else is a page.
             if (p === "network" || p === "capture" || p === "ps5" || p === "moonlight" || p === "xbox" || p === "screen"
-                || p === "subtitle" || p === "translation" || p === "audio" || p === "save" || p === "manage" || p === "optimize" || p === "games" || p === "hud" || p === "latencyguide" || p === "crop" || p === "stream" || p === "compare" || p === "record" || p === "micfilters" || p === "layout" || p === "frameinput" || p === "qualitytest" || p === "latencytest" || p === "crash" || p === "cardtest" || p === "diagnose" || p === "readtext") {
+                || p === "subtitle" || p === "translation" || p === "audio" || p === "save" || p === "manage" || p === "optimize" || p === "games" || p === "hud" || p === "latencyguide" || p === "crop" || p === "stream" || p === "compare" || p === "record" || p === "micfilters" || p === "layout" || p === "frameinput" || p === "qualitytest" || p === "latencytest" || p === "crash" || p === "cardtest" || p === "diagnose" || p === "readtext" || p === "kbm") {
                 dialogs.open(p)
                 return
             }

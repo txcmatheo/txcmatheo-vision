@@ -10,6 +10,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "TxcText.js" as TxcText
 
 VPage {
     id: root
@@ -102,7 +103,7 @@ VPage {
                 VSpinner { anchors.verticalCenter: parent.verticalCenter }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: veyra.liveOpeningText
+                    text: TxcText.fix(veyra.liveOpeningText, s => qsTr(s))
                     color: Theme.t1
                     font.family: Theme.fontUi
                     font.pixelSize: Theme.fsBody

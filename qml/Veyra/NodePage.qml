@@ -1597,7 +1597,7 @@ VPage {
                 opacity: enabled ? 1 : 0.4
                 Text {
                     Layout.fillWidth: true
-                    text: veyra.videoHdrStatus.length > 0 ? veyra.videoHdrStatus : qsTr("SDR → HDR，在补帧之前")
+                    text: veyra.videoHdrStatus.length > 0 ? TxcText.fix(veyra.videoHdrStatus, s => qsTr(s)) : qsTr("SDR → HDR，在补帧之前")
                     color: Theme.t3; font.family: Theme.fontUi; font.pixelSize: 11; wrapMode: Text.WordWrap
                 }
                 Repeater {

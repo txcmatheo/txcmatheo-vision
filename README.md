@@ -10,9 +10,13 @@ proyectos. Este repositorio solo contiene los cambios de Txcmatheo.
 
 ## Instalar
 
-1. En [Releases](../../releases/latest) descarga el **.zip completo** (`Txcmatheo-Vision-…zip`, sin "parche").
-2. Descomprímelo entero y abre **`Txcmatheo Vision.exe`** de la carpeta principal.
+1. En [Releases](../../releases/latest) descarga el **instalador** (`Txcmatheo-Vision-…-instalador.exe`).
+2. Ábrelo y pulsa **Instalar**: no pide permisos de administrador, crea los accesos directos y se puede
+   quitar desde *Configuración → Aplicaciones instaladas*.
 3. Si Windows avisa de que la app es desconocida: *Más información* → *Ejecutar de todas formas*.
+
+¿Prefieres sin instalar? Las notas de cada release enlazan el **.zip completo**: descomprímelo entero y
+abre **`Txcmatheo Vision.exe`** de la carpeta principal.
 
 Requisitos: Windows 10/11 de 64 bits y tarjeta gráfica **NVIDIA**. El archivo
 `LEEME - Txcmatheo Vision.txt` explica cómo conectar la PS5.
@@ -31,6 +35,7 @@ Sin internet abre la versión que ya tienes.
 - **Calidad de VFG por perfil**.
 - **Rescate del frame gen**: si una escena pesada lo deja parado, baja la calidad o lo reinicia solo.
 - Sin aviso de actualización de PushFPS (las actualiza el lanzador de este repositorio).
+- Los mensajes del motor que salían en chino se muestran en inglés (`TxcText.js`).
 
 ## Código y licencia
 
@@ -40,6 +45,7 @@ siguen dentro de la app (*Settings → About*) y en sus archivos `NOTICE.md` y `
 - `qml/Veyra/` — la interfaz (QML) de PushFPS con los cambios de Txcmatheo (`TxcAutoProfile.qml`,
   `TxcFgRescue.qml`, `HomePage.qml`, `Theme.qml`, …).
 - `launcher/TxcLauncher.cs` — el lanzador que actualiza.
+- `launcher/TxcInstalador.cs` — el instalador de un solo archivo (el zip va pegado al final del .exe).
 - `tools/` — los scripts que arman cada versión: cambio de icono y nombre del exe, imágenes,
   versión para compartir y publicación.
 - `share/ORIGEN.txt` — de qué versiones de PushFPS y Veyra se parte y dónde está su código fuente.
