@@ -94,7 +94,14 @@ QtObject {
     property Timer timer: Timer {
         interval: 1000; repeat: true
         running: veyra.hasSource === true && veyra.fgEnabled === true && veyra.fgBackendName === "vfg"
-        onRunningChanged: { rescue.idleSeconds = 0; if (!running) rescue.reset() }
+        // Al parar (fin de la fuente, cerrar Vision) la calidad bajada por un rescate vuelve a la de antes:
+        // si no, el autoguardado de perfiles la guardaba (el GTA VI del usuario quedó en Low el 26/11).
+        onRunningChanged: {
+            rescue.idleSeconds = 0
+            if (running) return
+            if (rescue.wanted >= 0 && Number(veyra.vfgQuality) !== rescue.wanted) rescue.setQuality(rescue.wanted)
+            rescue.reset()
+        }
         onTriggered: rescue.tick()
     }
 }
