@@ -21,6 +21,14 @@ abre **`Txcmatheo Vision.exe`** de la carpeta principal.
 Requisitos: Windows 10/11 de 64 bits y tarjeta gráfica **NVIDIA**. El archivo
 `LEEME - Txcmatheo Vision.txt` explica cómo conectar la PS5.
 
+## Mac
+
+En cada release desde la 4.6.3 hay también **`Txcmatheo-Vision-…-mac.zip`** (macOS 12 o más nuevo, Apple Silicon
+o Intel). Es la app de Linux/macOS de PushFPS con el diseño Txcmatheo: **solo con capturadora**, con su propio
+frame gen (sin NVIDIA VFG), sin PS5 Remote Play y sin actualización automática. No está firmada por Apple: la
+primera vez, clic derecho → *Abrir*. Se compila en GitHub Actions (`.github/workflows/build-mac.yml`,
+`mac/apply-txcmatheo.py`).
+
 ## Actualizaciones
 
 `Txcmatheo Vision.exe` es un lanzador: al abrirse mira la última release de este repositorio y, si hay
