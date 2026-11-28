@@ -1745,12 +1745,13 @@ VPage {
                     // (PushFPS 4.3.1) As in the list (ProPage.qml): shown for every method, greyed out with
                     // the reason for the methods that work out the motion themselves.
                     readonly property bool ownMotion: ["vfg", "amdfrc", "pushflow"].indexOf(veyra.fgBackendName) >= 0
-                    hint: ownMotion ? qsTr("当前补帧方式自行估算运动，不使用此选项") : qsTr("XeSS 默认零运动；FSR 仍有自身的光流计算")
+                    // Txcmatheo Vision: se puede elegir siempre (el motor lo guarda aunque VFG no lo use); con VFG marca Zero motion, lo que de verdad aplica.
+                    hint: ownMotion ? (Qt.uiLanguage.indexOf("es") === 0 ? "Este método calcula el movimiento por su cuenta; lo que elijas se guarda para XeSS, DLSS y FSR" : "This method works out motion by itself; your choice is kept for XeSS, DLSS and FSR") : qsTr("XeSS 默认零运动；FSR 仍有自身的光流计算")
                     VSeg {
                         objectName: "node-fg-motion"
-                        options: [{id:"0",label:qsTr("零运动"),disabled:nodeFgMotionRow.ownMotion},{id:"1",label:qsTr("光流"),disabled:nodeFgMotionRow.ownMotion}]
-                        current: nodeFgMotionRow.ownMotion ? "" : String(veyra.fgMotionSource)
-                        onPicked: id => { if (!nodeFgMotionRow.ownMotion) veyra.fgMotionSource = Number(id) }
+                        options: [{id:"0",label:qsTr("零运动")},{id:"1",label:qsTr("光流")}]
+                        current: String(veyra.fgMotionSource)
+                        onPicked: id => veyra.fgMotionSource = Number(id)
                     }
                 }
                 VRow {

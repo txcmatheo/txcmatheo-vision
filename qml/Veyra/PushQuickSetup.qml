@@ -1321,7 +1321,7 @@ VGroup {
                      : "Switches between your 60 FPS and 30 FPS profiles by what the console sends"
             VSwitch {
                 objectName: "txc-auto-profile"
-                checked: !(quick.profiles.txc && quick.profiles.txc.auto === false)
+                checked: !!(quick.profiles.txc && quick.profiles.txc.auto === true)   // apagado por defecto (TxcAutoProfile.qml)
                 onToggled: checked => {
                     const p = quick.copyProfiles()
                     p.txc = Object.assign({}, p.txc || {}, { auto: checked })

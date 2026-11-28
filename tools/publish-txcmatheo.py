@@ -44,7 +44,7 @@ def make_zip(root, rels, dest):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--app", default=os.path.join(os.path.expanduser("~"), "Desktop", "Txcmatheo Vision 4.5.7"))
+    ap.add_argument("--app", default=os.path.join(os.path.expanduser("~"), "Desktop", "Txcmatheo Vision"))
     ap.add_argument("--owner", required=True)
     ap.add_argument("--notes", default="")
     ap.add_argument("--full", action="store_true")
@@ -160,9 +160,11 @@ def main():
            if re.fullmatch(r"Txcmatheo Vision [0-9.]+ \((para amigos\)\.zip|instalador\)\.exe)", f)
            and not f.startswith(f"Txcmatheo Vision {version} (")]
     for f in old:
+        # La ruta va dentro del comando (con -Command, $args no recibe los argumentos que siguen).
+        quoted = "'" + f.replace("'", "''") + "'"
         subprocess.run(["powershell", "-NoProfile", "-Command",
-                        "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($args[0], "
-                        "'OnlyErrorDialogs', 'SendToRecycleBin')", f], check=True)
+                        "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile("
+                        + quoted + ", 'OnlyErrorDialogs', 'SendToRecycleBin')"], check=True)
         print("a la Papelera:", os.path.basename(f))
 
 main()

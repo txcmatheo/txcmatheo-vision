@@ -25,7 +25,8 @@ QtObject {
     property int cooldown: 0
 
     readonly property var txc: quick && quick.profiles && typeof quick.profiles.txc === "object" && quick.profiles.txc ? quick.profiles.txc : ({})
-    readonly property bool autoOn: txc.auto !== false
+    // Apagado por defecto desde 4.6.3: solo cambia de perfil si se encendió a mano en la configuración rápida.
+    readonly property bool autoOn: txc.auto === true
 
     function gameByName(name) { return quick ? quick.games.find(g => g.name === name) : undefined }
     function gamesWith(fps) {

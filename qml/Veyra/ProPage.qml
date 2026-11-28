@@ -2026,12 +2026,13 @@ VPage {
                                 // flow choice is gone" (users' reports), and with the other two it was a choice that
                                 // changed nothing. It now stays, greyed out, and says why.
                                 readonly property bool ownMotion: ["vfg", "amdfrc", "pushflow"].indexOf(veyra.fgBackendName) >= 0
-                                hint: ownMotion ? qsTr("当前补帧方式自行估算运动，不使用此选项") : qsTr("XeSS 默认零运动；FSR 仍有自身的光流计算")
+                                // Txcmatheo Vision: se puede elegir siempre (el motor lo guarda aunque VFG no lo use); con VFG marca Zero motion, lo que de verdad aplica.
+                                hint: ownMotion ? (Qt.uiLanguage.indexOf("es") === 0 ? "Este método calcula el movimiento por su cuenta; lo que elijas se guarda para XeSS, DLSS y FSR" : "This method works out motion by itself; your choice is kept for XeSS, DLSS and FSR") : qsTr("XeSS 默认零运动；FSR 仍有自身的光流计算")
                                 VSeg {
                                     objectName: "list-fg-motion"
-                                    options: [{id:"0",label:qsTr("零运动"),disabled:fgMotionRow.ownMotion},{id:"1",label:qsTr("光流"),disabled:fgMotionRow.ownMotion}]
-                                    current: fgMotionRow.ownMotion ? "" : String(veyra.fgMotionSource)
-                                    onPicked: id => { if (!fgMotionRow.ownMotion) veyra.fgMotionSource = Number(id) }
+                                    options: [{id:"0",label:qsTr("零运动")},{id:"1",label:qsTr("光流")}]
+                                    current: String(veyra.fgMotionSource)
+                                    onPicked: id => veyra.fgMotionSource = Number(id)
                                 }
                             }
                             VRow {
