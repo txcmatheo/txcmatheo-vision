@@ -1,0 +1,34 @@
+TXCMATHEO VISION PARA MAC
+=========================
+
+Juega la PS5 en tu Mac con capturadora y con más fluidez: Txcmatheo Vision genera cuadros intermedios
+para pasar de 30 o 60 fps a 60–120.
+
+Qué necesitas
+- macOS 12 o más nuevo (Mac con Apple Silicon o con Intel).
+- Una capturadora HDMI por USB (macOS la ve como una cámara).
+
+Antes de empezar
+1. Cable HDMI de la PS5 a la capturadora, y la capturadora al USB del Mac.
+2. En la PS5: Ajustes → Sistema → HDMI → apaga «Activar HDCP» (si no, se ve negro).
+
+Abrirlo la primera vez
+- Arrastra «Txcmatheo Vision.app» a la carpeta Aplicaciones.
+- La app no está firmada por Apple: la primera vez haz clic derecho (o Control + clic) sobre ella →
+  Abrir → Abrir. Si macOS sigue sin dejar: Ajustes del Sistema → Privacidad y seguridad → «Abrir igualmente».
+- Deja que use la cámara y el micrófono: así macOS llama a la imagen y al sonido de la capturadora.
+
+Jugar
+1. Elige tu capturadora en las fuentes (Sources) y conéctala.
+2. Elige los fps de salida (60 o 120) en la configuración rápida. ¡A jugar!
+
+Qué trae y qué no (frente a la versión de Windows)
+- Sí: capturadora, frame gen propio (funciona en cualquier Mac), Frame Pacing Repair, Live HUD Lock,
+  Crosshair Hold y el diseño Txcmatheo.
+- No: PS5 Remote Play y otros streamings, NVIDIA VFG / DLSS, grabación, directos ni actualización automática
+  (las versiones nuevas se descargan de la página de releases).
+
+Licencia
+Txcmatheo Vision para Mac es la app de Linux/macOS de PushFPS (DosukaSOL), basada en Veyra (Likely7), con el
+diseño de Txcmatheo. GNU GPL-3.0, sin ninguna garantía (ver LICENSE.txt). Código fuente:
+https://github.com/txcmatheo/txcmatheo-vision (carpeta mac/) y https://github.com/DosukaSOL/PushFPS (portable/).

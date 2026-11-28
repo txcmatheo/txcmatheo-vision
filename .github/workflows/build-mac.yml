@@ -1,0 +1,140 @@
+# Txcmatheo Vision para Mac: compila en un Mac de GitHub la app de Linux/macOS de PushFPS (portable/) con el
+# diseño Txcmatheo (mac/apply-txcmatheo.py). Receta copiada de .github/workflows/build-portable.yml de PushFPS
+# (job "macos"), con las rutas y nombres de Txcmatheo Vision.
+# Se lanza a mano (Actions → build-mac → Run workflow). Deja el .zip y unas capturas de la app como artefacto;
+# con "release_tag" además sube el .zip a esa release.
+name: build-mac
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versión de Txcmatheo Vision (la que sale en Acerca de y en el nombre del zip)'
+        required: true
+        default: '4.6.2'
+      pushfps_tag:
+        description: 'Versión de PushFPS en la que se basa (etiqueta de github.com/DosukaSOL/PushFPS)'
+        required: true
+        default: 'v4.5.7'
+      release_tag:
+        description: 'Subir el zip a esta release de este repositorio (vX.Y.Z). Vacío: solo artefacto.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+env:
+  QT_VERSION: '6.8.3'
+  APP: build/app/TxcmatheoVision.app/Contents/MacOS/TxcmatheoVision
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - name: Txcmatheo Vision (este repositorio)
+        uses: actions/checkout@v4
+        with:
+          path: txc
+
+      - name: PushFPS ${{ inputs.pushfps_tag }}
+        uses: actions/checkout@v4
+        with:
+          repository: DosukaSOL/PushFPS
+          ref: ${{ inputs.pushfps_tag }}
+          path: pushfps
+
+      - name: Diseño Txcmatheo
+        run: |
+          python3 -m pip install --quiet --break-system-packages pillow 2>/dev/null || python3 -m pip install --quiet pillow
+          python3 txc/mac/apply-txcmatheo.py pushfps "${{ inputs.version }}"
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.5.0
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: clang_64
+          modules: qtmultimedia qtshadertools
+          cache: true
+
+      - name: Compilar (Apple Silicon e Intel)
+        working-directory: pushfps
+        run: |
+          cmake -S portable -B build -DCMAKE_BUILD_TYPE=Release -DPUSHFPS_PORTABLE_TESTS=OFF "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+          cmake --build build -j4
+          lipo -info "$APP"
+
+      - name: Prueba (imagen de prueba, sin ventana)
+        working-directory: pushfps
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          set -e
+          "$APP" --version
+          twice() { "$@" || { echo "::warning::reintento: $*"; "$@"; }; }
+          twice "$APP" --selftest 6 --source testpattern --target 60
+
+      - name: Capturas de la app
+        working-directory: pushfps
+        continue-on-error: true
+        run: |
+          mkdir -p ../shots
+          for p in home pro min set; do
+            "$APP" --screenshot ../shots/mac-$p-es.png --page $p --lang es || true
+          done
+          "$APP" --screenshot ../shots/mac-home-en.png --page home --lang en || true
+
+      - name: Empaquetar (.app y zip)
+        working-directory: pushfps
+        run: |
+          set -e
+          v="${{ inputs.version }}"
+          mkdir -p build/app/TxcmatheoVision.app/Contents/Resources
+          python3 -c "from PIL import Image; Image.open('portable/app/qml/icon.png').convert('RGBA').save('build/app/TxcmatheoVision.app/Contents/Resources/AppIcon.icns', sizes=[(16,16),(32,32),(64,64),(128,128),(256,256),(512,512),(1024,1024)])"
+          macdeployqt build/app/TxcmatheoVision.app -qmldir=portable/app/qml -always-overwrite
+          mkdir -p dist
+          ditto build/app/TxcmatheoVision.app "dist/Txcmatheo Vision.app"
+          # Firma ad-hoc (obligatoria para abrir en Apple Silicon); sin notarizar.
+          codesign --force --deep --sign - "dist/Txcmatheo Vision.app"
+          codesign --verify --deep --strict "dist/Txcmatheo Vision.app"
+          cp LICENSE dist/LICENSE.txt
+          cp licenses/NVIDIA_Image_Scaling_SDK_MIT.txt dist/
+          cp ../txc/mac/LEEME-mac.txt "dist/LEEME - Txcmatheo Vision.txt"
+          ditto -c -k --sequesterRsrc dist "../Txcmatheo-Vision-$v-mac.zip"
+          ls -la ../*.zip
+
+      - name: Prueba del paquete
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          set -e
+          mkdir -p /tmp/t && ditto -x -k "Txcmatheo-Vision-${{ inputs.version }}-mac.zip" /tmp/t
+          bin="/tmp/t/Txcmatheo Vision.app/Contents/MacOS/TxcmatheoVision"
+          # Nada debe apuntar al Qt instalado en esta máquina.
+          if [ -n "$QT_ROOT_DIR" ]; then ! otool -L "$bin" | grep -q "$QT_ROOT_DIR"; fi
+          set +e
+          out=$("$bin" --selftest 5 --source testpattern --target 60 2>&1); code=$?
+          set -e
+          echo "$out"
+          if [ $code -ne 0 ]; then
+            # Un Mac compartido lento puede no llegar a 60 Hz: eso no dice nada del paquete.
+            echo "$out" | grep -q "result: FAIL (rates)" && echo "$out" | grep -Eq "generated: [1-9]" && echo "::warning::el runner no llegó a 60 Hz; el paquete sí funciona" || exit $code
+          fi
+          shasum -a 256 "Txcmatheo-Vision-${{ inputs.version }}-mac.zip" | tee "Txcmatheo-Vision-${{ inputs.version }}-mac.zip.sha256"
+
+      - name: Guardar zip y capturas
+        uses: actions/upload-artifact@v4
+        with:
+          name: txcmatheo-vision-${{ inputs.version }}-mac
+          path: |
+            Txcmatheo-Vision-*-mac.zip
+            Txcmatheo-Vision-*-mac.zip.sha256
+            shots/*.png
+
+      - name: Subir a la release
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.release_tag }}" --clobber --repo "${{ github.repository }}" "Txcmatheo-Vision-${{ inputs.version }}-mac.zip" "Txcmatheo-Vision-${{ inputs.version }}-mac.zip.sha256"
