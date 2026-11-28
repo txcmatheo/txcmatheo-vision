@@ -91,6 +91,8 @@ jobs:
         run: |
           set -e
           v="${{ inputs.version }}"
+          # Install Qt cambia el Python de la máquina: Pillow otra vez para el icono.
+          python3 -m pip install --quiet --break-system-packages pillow 2>/dev/null || python3 -m pip install --quiet pillow
           mkdir -p build/app/TxcmatheoVision.app/Contents/Resources
           python3 -c "from PIL import Image; Image.open('portable/app/qml/icon.png').convert('RGBA').save('build/app/TxcmatheoVision.app/Contents/Resources/AppIcon.icns', sizes=[(16,16),(32,32),(64,64),(128,128),(256,256),(512,512),(1024,1024)])"
           macdeployqt build/app/TxcmatheoVision.app -qmldir=portable/app/qml -always-overwrite
